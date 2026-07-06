@@ -14,6 +14,7 @@
   "dependencies": {
     "@quasar/extras": "^2.0.0",
     "@supabase/supabase-js": "^2.110.0",
+    "pinia": "^3.0.4",
     "quasar": "^2.20.0",
     "vue": "^3.5.22",
     "vue-router": "^5.0.6"
