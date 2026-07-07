@@ -59,7 +59,7 @@ export const useAuthStore = defineStore('auth', () => {
     city: string;
   }) {
     const emailRedirectTo = `${window.location.origin}${window.location.pathname}#/login`;
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: params.email,
       password: params.password,
       options: {
@@ -72,6 +72,10 @@ export const useAuthStore = defineStore('auth', () => {
       },
     });
     if (error) throw error;
+    // Wenn die E-Mail-Bestaetigung aus ist, liefert signUp direkt eine Session
+    // (Nutzer ist sofort eingeloggt). Ist sie an, ist session null und der
+    // Nutzer muss erst die Bestaetigungsmail anklicken.
+    return { needsEmailConfirmation: data.session === null };
   }
 
   async function signIn(email: string, password: string) {

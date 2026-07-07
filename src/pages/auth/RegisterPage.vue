@@ -74,10 +74,12 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth-store';
 import { genderOptions, type Gender } from '@/types/profile';
 import { getAuthErrorMessage } from '@/utils/auth-errors';
 
+const router = useRouter();
 const authStore = useAuthStore();
 
 const firstName = ref('');
@@ -93,14 +95,20 @@ async function onSubmit() {
   loading.value = true;
   errorMessage.value = '';
   try {
-    await authStore.signUp({
+    const { needsEmailConfirmation } = await authStore.signUp({
       email: email.value,
       password: password.value,
       firstName: firstName.value,
       gender: gender.value,
       city: city.value,
     });
-    registered.value = true;
+    if (needsEmailConfirmation) {
+      // E-Mail-Bestaetigung ist aktiv: Hinweis anzeigen, kein Auto-Login.
+      registered.value = true;
+    } else {
+      // Bestaetigung aus: Nutzer ist bereits eingeloggt, direkt weiterleiten.
+      await router.push('/');
+    }
   } catch (error) {
     errorMessage.value = getAuthErrorMessage(error);
   } finally {
