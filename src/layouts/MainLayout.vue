@@ -5,6 +5,7 @@
         <q-toolbar-title>I need you</q-toolbar-title>
 
         <template v-if="authStore.isAuthenticated">
+          <q-btn flat label="Brett" to="/board" no-caps />
           <q-btn flat label="Gruppen" to="/groups" no-caps />
           <q-btn flat round icon="account_circle" aria-label="Konto">
             <q-menu>

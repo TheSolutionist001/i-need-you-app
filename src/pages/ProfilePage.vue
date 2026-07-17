@@ -25,11 +25,8 @@
             emit-value
             map-options
           />
-          <q-input
-            v-model="city"
-            label="Stadt"
-            :rules="[(val: string) => !!val || 'Bitte Stadt eingeben']"
-          />
+          <CitySelect v-model="city" @select="onCity" />
+          <div v-if="cityError" class="text-negative text-caption">{{ cityError }}</div>
 
           <div v-if="successMessage" class="text-positive text-caption">{{ successMessage }}</div>
           <div v-if="errorMessage" class="text-negative text-caption">{{ errorMessage }}</div>
@@ -55,30 +52,45 @@
 <script setup lang="ts">
 import { ref, computed, watchEffect } from 'vue';
 import { useRouter } from 'vue-router';
+import CitySelect from '@/components/CitySelect.vue';
 import { useAuthStore } from '@/stores/auth-store';
 import { genderOptions, type Gender } from '@/types/profile';
+import { findCity, type City } from '@/data/german-cities';
 
 const router = useRouter();
 const authStore = useAuthStore();
 
 const firstName = ref('');
 const gender = ref<Gender>('keine_angabe');
-const city = ref('');
+const city = ref<string | null>(null);
+const selectedCity = ref<City | null>(null);
 const loading = ref(false);
 const successMessage = ref('');
 const errorMessage = ref('');
+const cityError = ref('');
 
 watchEffect(() => {
   if (authStore.profile) {
     firstName.value = authStore.profile.first_name;
     gender.value = authStore.profile.gender ?? 'keine_angabe';
-    city.value = authStore.profile.city ?? '';
+    city.value = authStore.profile.city ?? null;
+    selectedCity.value = findCity(authStore.profile.city) ?? null;
   }
 });
 
 const initials = computed(() => (authStore.profile?.first_name?.[0] ?? '?').toUpperCase());
 
+function onCity(c: City | null) {
+  selectedCity.value = c;
+  cityError.value = '';
+}
+
 async function onSave() {
+  cityError.value = '';
+  if (!selectedCity.value) {
+    cityError.value = 'Bitte eine Stadt auswählen.';
+    return;
+  }
   loading.value = true;
   successMessage.value = '';
   errorMessage.value = '';
@@ -86,8 +98,9 @@ async function onSave() {
     await authStore.updateOwnProfile({
       first_name: firstName.value,
       gender: gender.value,
-      city: city.value,
+      city: selectedCity.value.name,
     });
+    await authStore.setLocation(selectedCity.value.lat, selectedCity.value.lng);
     successMessage.value = 'Gespeichert.';
   } catch {
     errorMessage.value = 'Speichern fehlgeschlagen. Bitte versuche es erneut.';

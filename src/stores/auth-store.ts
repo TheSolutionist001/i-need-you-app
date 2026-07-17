@@ -102,6 +102,12 @@ export const useAuthStore = defineStore('auth', () => {
     profile.value = data as Profile;
   }
 
+  // Setzt den groben Standort (Stadt-Koordinaten) fuer die Umkreissuche.
+  async function setLocation(lat: number, lng: number) {
+    const { error } = await supabase.rpc('set_my_location', { p_lat: lat, p_lng: lng });
+    if (error) throw error;
+  }
+
   return {
     session,
     user,
@@ -114,5 +120,6 @@ export const useAuthStore = defineStore('auth', () => {
     signOut,
     fetchOwnProfile,
     updateOwnProfile,
+    setLocation,
   };
 });

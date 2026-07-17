@@ -32,11 +32,8 @@
             emit-value
             map-options
           />
-          <q-input
-            v-model="city"
-            label="Stadt"
-            :rules="[(val: string) => !!val || 'Bitte Stadt eingeben']"
-          />
+          <CitySelect v-model="city" @select="onCity" />
+          <div v-if="cityError" class="text-negative text-caption">{{ cityError }}</div>
 
           <div v-if="errorMessage" class="text-negative text-caption">{{ errorMessage }}</div>
 
@@ -75,8 +72,10 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import CitySelect from '@/components/CitySelect.vue';
 import { useAuthStore } from '@/stores/auth-store';
 import { genderOptions, type Gender } from '@/types/profile';
+import type { City } from '@/data/german-cities';
 import { getAuthErrorMessage } from '@/utils/auth-errors';
 
 const router = useRouter();
@@ -86,12 +85,24 @@ const firstName = ref('');
 const email = ref('');
 const password = ref('');
 const gender = ref<Gender>('keine_angabe');
-const city = ref('');
+const city = ref<string | null>(null);
+const selectedCity = ref<City | null>(null);
 const loading = ref(false);
 const errorMessage = ref('');
+const cityError = ref('');
 const registered = ref(false);
 
+function onCity(c: City | null) {
+  selectedCity.value = c;
+  cityError.value = '';
+}
+
 async function onSubmit() {
+  cityError.value = '';
+  if (!selectedCity.value) {
+    cityError.value = 'Bitte eine Stadt auswählen.';
+    return;
+  }
   loading.value = true;
   errorMessage.value = '';
   try {
@@ -100,13 +111,14 @@ async function onSubmit() {
       password: password.value,
       firstName: firstName.value,
       gender: gender.value,
-      city: city.value,
+      city: selectedCity.value.name,
     });
     if (needsEmailConfirmation) {
       // E-Mail-Bestaetigung ist aktiv: Hinweis anzeigen, kein Auto-Login.
       registered.value = true;
     } else {
-      // Bestaetigung aus: Nutzer ist bereits eingeloggt, direkt weiterleiten.
+      // Bestaetigung aus: Nutzer ist sofort eingeloggt -> Standort setzen, weiter.
+      await authStore.setLocation(selectedCity.value.lat, selectedCity.value.lng);
       await router.push('/');
     }
   } catch (error) {
