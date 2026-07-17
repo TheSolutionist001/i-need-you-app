@@ -69,6 +69,8 @@ i-need-you-app/
 
 ## 5. Aktueller Stand
 
-- Phase 0 (Projekt-Setup) fast fertig: Quasar-Grundgerüst inkl. TypeScript und Capacitor-Vorbereitung steht, GitHub-Repo verbunden, `@supabase/supabase-js` installiert und Boot-File (`src/boot/supabase.ts`) vorbereitet (nutzt Env-Vars `QCLI_SUPABASE_URL` / `QCLI_SUPABASE_ANON_KEY`, siehe `.env.example`).
-- Supabase-Projekt selbst wurde noch **nicht** angelegt — sobald Projekt-URL und anon key vorliegen, `.env` aus `.env.example` befüllen (nie committen, ist bereits in `.gitignore`).
-- Nächste Schritte laut Phasenplan: Supabase-Projekt-Zugangsdaten eintragen, dann Phase 1 (Auth & Profile).
+- **Phase 0 (Setup):** fertig. Quasar-Grundgerüst, Capacitor-Vorbereitung, GitHub-Repo, Supabase-Client (`src/boot/supabase.ts`, Env-Vars `QCLI_SUPABASE_URL` / `QCLI_SUPABASE_ANON_KEY`, siehe `.env.example`). Supabase-Projekt: `chdhkkgenxskblezfbrl`.
+- **Phase 1 (Auth & Profile):** fertig, in `main`. Registrierung/Login/Profil (Dark Mode), Pinia auth-store, Router-Guard, `profiles`-Tabelle mit RLS + `public_profiles`-View. CSP in `index.html` erlaubt Supabase (`https://*.supabase.co wss://*.supabase.co`).
+- **Phase 2 (Datenmodell & RLS):** fertig (Branch `feature/data-model`). Migration `supabase/migrations/0002_data_model.sql`: Tabellen `groups`, `group_members`, `board_posts`, `reports` + PostGIS + `profiles.location`. RLS per curl mit echten Testnutzern verifiziert (Zielgruppen-Filter, Shadow-Ban, kein direkter Gruppen-Beitritt). Datenbank-Migrationen laufen manuell im Supabase-SQL-Editor (kein CLI).
+- **Wichtig (Dev-Modus):** E-Mail-Bestätigung ist in Supabase aktuell **ausgeschaltet** (erleichtert Testen) — vor dem Launch wieder einschalten. Dev-Server läuft auf **Port 9100**.
+- **Nächste Schritte:** Phase 3 (Gruppenmanagement + atomare Wartelisten-Logik als Postgres-RPC mit Zeilen-Sperre). Offene Punkte aus Phase 2 siehe Kommentare am Ende der Migration (Einladelink-Vorschau, Stadt→Koordinaten-Geocoding, Admin-Rolle).
