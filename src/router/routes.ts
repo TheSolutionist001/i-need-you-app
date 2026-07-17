@@ -22,6 +22,10 @@ const routes: RouteRecordRaw[] = [
     children: [
       { path: '', component: () => import('@/pages/IndexPage.vue'), meta: { requiresAuth: true } },
       { path: 'profile', component: () => import('@/pages/ProfilePage.vue'), meta: { requiresAuth: true } },
+      { path: 'groups', component: () => import('@/pages/groups/GroupsListPage.vue'), meta: { requiresAuth: true } },
+      { path: 'groups/new', component: () => import('@/pages/groups/GroupCreatePage.vue'), meta: { requiresAuth: true } },
+      { path: 'groups/join/:id', component: () => import('@/pages/groups/GroupJoinPage.vue'), meta: { requiresAuth: true } },
+      { path: 'groups/:id', component: () => import('@/pages/groups/GroupDetailPage.vue'), meta: { requiresAuth: true } },
     ],
   },
 
