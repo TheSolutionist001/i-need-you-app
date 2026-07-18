@@ -45,29 +45,84 @@
               <q-icon name="lock" size="12px" /> nur für: {{ genderLabels(post.target_genders) }}
             </q-item-label>
           </q-item-section>
-          <q-item-section v-if="post.author_id === authStore.user?.id" side top>
-            <q-btn flat dense round icon="delete" color="grey" size="sm" aria-label="Löschen" @click="onDelete(post.id)" />
+          <q-item-section side top>
+            <q-btn
+              v-if="post.author_id === authStore.user?.id"
+              flat dense round icon="delete" color="grey" size="sm" aria-label="Löschen"
+              @click="onDelete(post.id)"
+            />
+            <q-btn v-else flat dense round icon="more_vert" color="grey" size="sm" aria-label="Optionen">
+              <q-menu>
+                <q-list style="min-width: 160px">
+                  <q-item v-close-popup clickable @click="openReport('post', post)">
+                    <q-item-section>Gesuch melden</q-item-section>
+                  </q-item>
+                  <q-item v-close-popup clickable @click="openReport('profile', post)">
+                    <q-item-section>Nutzer melden</q-item-section>
+                  </q-item>
+                </q-list>
+              </q-menu>
+            </q-btn>
           </q-item-section>
         </q-item>
       </q-list>
     </div>
+
+    <ReportDialog
+      v-model="reportOpen"
+      :title="reportKind === 'post' ? 'Gesuch melden' : 'Nutzer melden'"
+      @submit="onReport"
+    />
   </q-page>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { useQuasar } from 'quasar';
+import ReportDialog from '@/components/ReportDialog.vue';
 import { useBoardStore } from '@/stores/board-store';
 import { useAuthStore } from '@/stores/auth-store';
+import { useModerationStore } from '@/stores/moderation-store';
 import { genderOptions, type Gender } from '@/types/profile';
 import type { BoardFeedItem } from '@/types/board';
+import type { ReportReason } from '@/types/report';
 
+const $q = useQuasar();
 const boardStore = useBoardStore();
 const authStore = useAuthStore();
+const moderationStore = useModerationStore();
 
 const radius = ref(20);
 const feed = ref<BoardFeedItem[]>([]);
 const loading = ref(true);
 const noLocation = ref(false);
+
+const reportOpen = ref(false);
+const reportKind = ref<'post' | 'profile'>('post');
+const reportTarget = ref<BoardFeedItem | null>(null);
+
+function openReport(kind: 'post' | 'profile', post: BoardFeedItem) {
+  reportKind.value = kind;
+  reportTarget.value = post;
+  reportOpen.value = true;
+}
+
+async function onReport(reason: ReportReason) {
+  if (!reportTarget.value) return;
+  try {
+    if (reportKind.value === 'post') {
+      await moderationStore.reportPost(reportTarget.value.id, reason);
+    } else {
+      await moderationStore.reportProfile(reportTarget.value.author_id, reason);
+    }
+    $q.notify({ message: 'Danke, die Meldung ist eingegangen.', color: 'positive', timeout: 2000 });
+    await load();
+  } catch {
+    $q.notify({ message: 'Melden fehlgeschlagen. Evtl. schon gemeldet?', color: 'negative', timeout: 2500 });
+  } finally {
+    reportOpen.value = false;
+  }
+}
 
 function formatDistance(m: number): string {
   const km = m / 1000;

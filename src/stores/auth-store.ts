@@ -9,6 +9,7 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null);
   const profile = ref<Profile | null>(null);
   const initialized = ref(false);
+  const bannedNotice = ref(false);
 
   const isAuthenticated = computed(() => session.value !== null);
 
@@ -28,6 +29,12 @@ export const useAuthStore = defineStore('auth', () => {
       return;
     }
     profile.value = data as Profile;
+
+    // Gesperrte Konten sofort abmelden.
+    if (profile.value.is_banned) {
+      bannedNotice.value = true;
+      await signOut();
+    }
   }
 
   async function init() {
@@ -113,6 +120,7 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     profile,
     initialized,
+    bannedNotice,
     isAuthenticated,
     init,
     signUp,
