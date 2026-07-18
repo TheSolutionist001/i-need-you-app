@@ -42,6 +42,29 @@
         </q-form>
       </q-card-section>
 
+      <q-separator v-if="pushAvailable" />
+
+      <q-card-section v-if="pushAvailable">
+        <div class="text-subtitle2 q-mb-xs">Benachrichtigungen</div>
+        <div v-if="pushEnabled" class="text-caption text-positive">
+          <q-icon name="check_circle" size="16px" /> Aktiv — du wirst benachrichtigt, wenn
+          du von einer Warteliste nachrückst.
+        </div>
+        <template v-else>
+          <div class="text-caption text-grey q-mb-sm">
+            Lass dich benachrichtigen, wenn du von einer Warteliste nachrückst.
+          </div>
+          <q-btn
+            outline
+            color="primary"
+            label="Benachrichtigungen aktivieren"
+            no-caps
+            :loading="pushLoading"
+            @click="onEnablePush"
+          />
+        </template>
+      </q-card-section>
+
       <q-card-section class="text-center">
         <q-btn flat color="negative" label="Abmelden" @click="onLogout" />
       </q-card-section>
@@ -50,12 +73,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watchEffect } from 'vue';
+import { ref, computed, watchEffect, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import CitySelect from '@/components/CitySelect.vue';
 import { useAuthStore } from '@/stores/auth-store';
 import { genderOptions, type Gender } from '@/types/profile';
 import { findCity, type City } from '@/data/german-cities';
+import { pushAvailable, isPushEnabled, requestPushPermission } from '@/utils/push';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -106,6 +130,24 @@ async function onSave() {
     errorMessage.value = 'Speichern fehlgeschlagen. Bitte versuche es erneut.';
   } finally {
     loading.value = false;
+  }
+}
+
+const pushEnabled = ref(false);
+const pushLoading = ref(false);
+
+onMounted(async () => {
+  if (pushAvailable) {
+    pushEnabled.value = await isPushEnabled();
+  }
+});
+
+async function onEnablePush() {
+  pushLoading.value = true;
+  try {
+    pushEnabled.value = await requestPushPermission();
+  } finally {
+    pushLoading.value = false;
   }
 }
 

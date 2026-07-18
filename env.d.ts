@@ -15,4 +15,5 @@
 interface ImportMetaEnv {
   readonly QCLI_SUPABASE_URL: string;
   readonly QCLI_SUPABASE_ANON_KEY: string;
+  readonly QCLI_ONESIGNAL_APP_ID: string;
 }
