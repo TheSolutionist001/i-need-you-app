@@ -64,23 +64,76 @@ export function logoutPush() {
   });
 }
 
-/** Fragt die Browser-Berechtigung an. Gibt zurueck, ob sie danach erteilt ist. */
-export async function requestPushPermission(): Promise<boolean> {
-  if (!pushAvailable) return false;
+/**
+ * Fuehrt eine Aktion aus, sobald OneSignal bereit ist - bricht aber nach
+ * `timeoutMs` ab. Ohne diese Absicherung wuerde die Oberflaeche endlos laden,
+ * falls OneSignal nie initialisiert (z. B. weil die Web-Plattform in der
+ * OneSignal-Konsole nicht eingerichtet ist).
+ */
+function withOneSignalTimeout<T>(
+  fn: (os: OneSignalApi) => T | Promise<T>,
+  fallback: T,
+  timeoutMs = 8000,
+): Promise<T> {
+  if (!pushAvailable) return Promise.resolve(fallback);
   return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value: T) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+
+    const timer = setTimeout(() => {
+      console.warn('OneSignal antwortet nicht - ist die Web-Plattform in OneSignal eingerichtet?');
+      finish(fallback);
+    }, timeoutMs);
+
     withOneSignal(async (OneSignal) => {
-      await OneSignal.Notifications.requestPermission();
-      resolve(OneSignal.Notifications.permission);
+      try {
+        const result = await fn(OneSignal);
+        clearTimeout(timer);
+        finish(result);
+      } catch (error) {
+        console.error('OneSignal-Fehler:', error);
+        clearTimeout(timer);
+        finish(fallback);
+      }
     });
   });
 }
 
-/** Aktueller Berechtigungsstatus (ohne Nachfrage). */
-export async function isPushEnabled(): Promise<boolean> {
-  if (!pushAvailable) return false;
-  return new Promise((resolve) => {
-    withOneSignal((OneSignal) => {
-      resolve(OneSignal.Notifications.permission);
-    });
-  });
+export type PushRequestResult =
+  | 'granted' // Berechtigung erteilt
+  | 'denied' // Nutzer/Browser hat blockiert
+  | 'unavailable'; // OneSignal antwortet nicht (z. B. Web-Plattform nicht eingerichtet)
+
+/**
+ * Fragt die Browser-Berechtigung an und meldet zurueck, woran es ggf. lag.
+ *
+ * WICHTIG: Ist die Berechtigung im Browser bereits auf "denied" gesetzt, kehrt
+ * OneSignals requestPermission() nie zurueck (kein Prompt, keine Ablehnung).
+ * Deshalb pruefen wir den Browser-Status vorher selbst und fragen nur, wenn
+ * ueberhaupt noch ein Prompt erscheinen kann.
+ */
+export function requestPushPermission(): Promise<PushRequestResult> {
+  if (!pushAvailable) return Promise.resolve('unavailable');
+
+  if (typeof Notification === 'undefined') return Promise.resolve('unavailable');
+  if (Notification.permission === 'denied') return Promise.resolve('denied');
+  if (Notification.permission === 'granted') return Promise.resolve('granted');
+
+  return withOneSignalTimeout<PushRequestResult>(async (OneSignal) => {
+    await OneSignal.Notifications.requestPermission();
+    return OneSignal.Notifications.permission ? 'granted' : 'denied';
+  }, 'unavailable');
+}
+
+/**
+ * Aktueller Berechtigungsstatus (ohne Nachfrage). Liest den Browser-Status
+ * direkt - das ist zuverlaessig und wartet nicht auf das SDK.
+ */
+export function isPushEnabled(): Promise<boolean> {
+  if (!pushAvailable || typeof Notification === 'undefined') return Promise.resolve(false);
+  return Promise.resolve(Notification.permission === 'granted');
 }

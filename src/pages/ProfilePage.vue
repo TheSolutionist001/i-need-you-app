@@ -62,6 +62,9 @@
             :loading="pushLoading"
             @click="onEnablePush"
           />
+          <div v-if="pushError" class="text-negative text-caption q-mt-sm">
+            {{ pushError }}
+          </div>
         </template>
       </q-card-section>
 
@@ -135,6 +138,7 @@ async function onSave() {
 
 const pushEnabled = ref(false);
 const pushLoading = ref(false);
+const pushError = ref('');
 
 onMounted(async () => {
   if (pushAvailable) {
@@ -144,8 +148,18 @@ onMounted(async () => {
 
 async function onEnablePush() {
   pushLoading.value = true;
+  pushError.value = '';
   try {
-    pushEnabled.value = await requestPushPermission();
+    const result = await requestPushPermission();
+    pushEnabled.value = result === 'granted';
+
+    if (result === 'denied') {
+      pushError.value =
+        'Dein Browser blockiert Benachrichtigungen für diese Seite. Erlaube sie über das Schloss-Symbol links in der Adressleiste und versuche es erneut.';
+    } else if (result === 'unavailable') {
+      pushError.value =
+        'Der Benachrichtigungsdienst antwortet nicht. Bitte später erneut versuchen.';
+    }
   } finally {
     pushLoading.value = false;
   }
