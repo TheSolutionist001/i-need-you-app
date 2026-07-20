@@ -9,6 +9,11 @@ interface OneSignalApi {
     permission: boolean;
     requestPermission(): Promise<void>;
   };
+  User: {
+    PushSubscription: {
+      optIn(): Promise<void>;
+    };
+  };
 }
 
 declare global {
@@ -122,17 +127,23 @@ export type PushRequestResult =
  * Deshalb pruefen wir den Browser-Status vorher selbst und fragen nur, wenn
  * ueberhaupt noch ein Prompt erscheinen kann.
  */
-export function requestPushPermission(): Promise<PushRequestResult> {
-  if (!pushAvailable) return Promise.resolve('unavailable');
+export async function requestPushPermission(): Promise<PushRequestResult> {
+  if (!pushAvailable) return 'unavailable';
+  if (typeof Notification === 'undefined') return 'unavailable';
+  if (Notification.permission === 'denied') return 'denied';
 
-  if (typeof Notification === 'undefined') return Promise.resolve('unavailable');
-  if (Notification.permission === 'denied') return Promise.resolve('denied');
-  if (Notification.permission === 'granted') return Promise.resolve('granted');
+  if (Notification.permission !== 'granted') {
+    // WICHTIG: Direkt (nicht ueber die OneSignal-Warteschlange) fragen. Browser
+    // zeigen den Dialog nur, wenn er unmittelbar aus der Nutzeraktion heraus
+    // geoeffnet wird - laeuft die Anfrage erst spaeter asynchron, unterdrueckt
+    // Chrome sie kommentarlos.
+    const result = await Notification.requestPermission();
+    if (result !== 'granted') return 'denied';
+  }
 
-  return withOneSignalTimeout<PushRequestResult>(async (OneSignal) => {
-    await OneSignal.Notifications.requestPermission();
-    return OneSignal.Notifications.permission ? 'granted' : 'denied';
-  }, 'unavailable');
+  // Berechtigung liegt vor -> OneSignal das Push-Abo anlegen lassen.
+  withOneSignal((OneSignal) => safely('optIn', () => OneSignal.User.PushSubscription.optIn()));
+  return 'granted';
 }
 
 /**
