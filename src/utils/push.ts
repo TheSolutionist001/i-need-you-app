@@ -50,18 +50,24 @@ export function initPush() {
   });
 }
 
+// Push darf die App nie stoeren: Faellt OneSignal aus (nicht initialisiert,
+// Berechtigung blockiert, Dienst nicht erreichbar), wird das nur protokolliert.
+async function safely(label: string, fn: () => Promise<unknown>) {
+  try {
+    await fn();
+  } catch (error) {
+    console.warn(`OneSignal ${label} fehlgeschlagen (Push bleibt inaktiv):`, error);
+  }
+}
+
 /** Verknuepft das Geraet mit dem Nutzer (OneSignal "External ID" = Supabase-ID). */
 export function loginPush(userId: string) {
-  withOneSignal(async (OneSignal) => {
-    await OneSignal.login(userId);
-  });
+  withOneSignal((OneSignal) => safely('login', () => OneSignal.login(userId)));
 }
 
 /** Loest die Verknuepfung beim Abmelden. */
 export function logoutPush() {
-  withOneSignal(async (OneSignal) => {
-    await OneSignal.logout();
-  });
+  withOneSignal((OneSignal) => safely('logout', () => OneSignal.logout()));
 }
 
 /**
