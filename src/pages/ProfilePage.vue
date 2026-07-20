@@ -158,7 +158,9 @@ async function onEnablePush() {
         'Dein Browser blockiert Benachrichtigungen für diese Seite. Erlaube sie über das Schloss-Symbol links in der Adressleiste und versuche es erneut.';
     } else if (result === 'unavailable') {
       pushError.value =
-        'Der Benachrichtigungsdienst antwortet nicht. Bitte später erneut versuchen.';
+        'Benachrichtigungen sind in diesem Fenster nicht verfügbar. In privaten bzw. ' +
+        'Inkognito-Fenstern unterstützen Browser keine Push-Nachrichten — bitte ein ' +
+        'normales Fenster verwenden.';
     }
   } finally {
     pushLoading.value = false;
