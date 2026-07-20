@@ -39,8 +39,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useGroupsStore } from '@/stores/groups-store';
+import { useAuthStore } from '@/stores/auth-store';
+import { useRealtime } from '@/composables/useRealtime';
 
 const groupsStore = useGroupsStore();
+const authStore = useAuthStore();
 const loading = ref(true);
 
 onMounted(async () => {
@@ -49,5 +52,10 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
+});
+
+// Live-Updates: eigene Mitgliedschaften (neu beigetreten, ausgetreten, entfernt).
+useRealtime('group_members', `user_id=eq.${authStore.user?.id ?? ''}`, () => {
+  void groupsStore.fetchMyGroups();
 });
 </script>

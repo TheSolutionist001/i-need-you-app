@@ -83,6 +83,7 @@ import ReportDialog from '@/components/ReportDialog.vue';
 import { useBoardStore } from '@/stores/board-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { useModerationStore } from '@/stores/moderation-store';
+import { useRealtime } from '@/composables/useRealtime';
 import { genderOptions, type Gender } from '@/types/profile';
 import type { BoardFeedItem } from '@/types/board';
 import type { ReportReason } from '@/types/report';
@@ -133,8 +134,9 @@ function genderLabels(values: Gender[]): string {
   return values.map((v) => genderOptions.find((o) => o.value === v)?.label ?? v).join(', ');
 }
 
-async function load() {
-  loading.value = true;
+// silent = true bei Live-Aktualisierungen: kein Ladebalken, kein Flackern.
+async function load(silent = false) {
+  if (!silent) loading.value = true;
   noLocation.value = false;
   try {
     if (!authStore.profile?.city) {
@@ -144,9 +146,15 @@ async function load() {
     }
     feed.value = await boardStore.fetchFeed(radius.value);
   } finally {
-    loading.value = false;
+    if (!silent) loading.value = false;
   }
 }
+
+// Live-Updates: neue/geloeschte Gesuche. Wir laden den Feed komplett neu, damit
+// Umkreis, Zielgruppen-Filter und Shadow-Ban weiterhin serverseitig greifen.
+useRealtime('board_posts', null, () => {
+  void load(true);
+});
 
 async function onDelete(id: string) {
   await boardStore.deletePost(id);
