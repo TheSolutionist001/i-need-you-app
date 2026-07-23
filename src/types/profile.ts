@@ -6,6 +6,8 @@ export interface Profile {
   gender: Gender | null;
   city: string | null;
   created_at: string;
+  is_admin: boolean;
+  is_banned: boolean;
 }
 
 export const genderOptions: { label: string; value: Gender }[] = [

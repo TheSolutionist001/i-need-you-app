@@ -6,6 +6,12 @@
         <div class="text-caption text-grey">Melde dich mit deiner E-Mail an.</div>
       </q-card-section>
 
+      <q-card-section v-if="authStore.bannedNotice">
+        <q-banner class="bg-red-1 text-negative rounded-borders">
+          Dein Konto wurde gesperrt.
+        </q-banner>
+      </q-card-section>
+
       <q-card-section>
         <q-form class="q-gutter-md" @submit="onSubmit">
           <q-input

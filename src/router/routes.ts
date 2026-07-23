@@ -3,6 +3,7 @@ import type { RouteRecordRaw } from 'vue-router';
 declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean;
+    requiresAdmin?: boolean;
   }
 }
 
@@ -26,6 +27,9 @@ const routes: RouteRecordRaw[] = [
       { path: 'groups/new', component: () => import('@/pages/groups/GroupCreatePage.vue'), meta: { requiresAuth: true } },
       { path: 'groups/join/:id', component: () => import('@/pages/groups/GroupJoinPage.vue'), meta: { requiresAuth: true } },
       { path: 'groups/:id', component: () => import('@/pages/groups/GroupDetailPage.vue'), meta: { requiresAuth: true } },
+      { path: 'board', component: () => import('@/pages/board/BoardPage.vue'), meta: { requiresAuth: true } },
+      { path: 'board/new', component: () => import('@/pages/board/BoardCreatePage.vue'), meta: { requiresAuth: true } },
+      { path: 'admin', component: () => import('@/pages/admin/AdminPage.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
     ],
   },
 

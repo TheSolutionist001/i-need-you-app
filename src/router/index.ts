@@ -41,10 +41,14 @@ export default defineRouter(({ store }) => {
     await authInit;
 
     const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
+    const requiresAdmin = to.matched.some((record) => record.meta.requiresAdmin);
     const isAuthPage = to.path === '/login' || to.path === '/register';
 
     if (requiresAuth && !authStore.isAuthenticated) {
       return '/login';
+    }
+    if (requiresAdmin && !authStore.profile?.is_admin) {
+      return '/';
     }
     if (isAuthPage && authStore.isAuthenticated) {
       return '/';

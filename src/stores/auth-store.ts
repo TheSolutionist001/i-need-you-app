@@ -2,6 +2,7 @@ import { ref, computed } from 'vue';
 import { defineStore } from 'pinia';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/boot/supabase';
+import { loginPush, logoutPush } from '@/utils/push';
 import type { Gender, Profile } from '@/types/profile';
 
 export const useAuthStore = defineStore('auth', () => {
@@ -9,6 +10,7 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null);
   const profile = ref<Profile | null>(null);
   const initialized = ref(false);
+  const bannedNotice = ref(false);
 
   const isAuthenticated = computed(() => session.value !== null);
 
@@ -28,6 +30,12 @@ export const useAuthStore = defineStore('auth', () => {
       return;
     }
     profile.value = data as Profile;
+
+    // Gesperrte Konten sofort abmelden.
+    if (profile.value.is_banned) {
+      bannedNotice.value = true;
+      await signOut();
+    }
   }
 
   async function init() {
@@ -35,6 +43,7 @@ export const useAuthStore = defineStore('auth', () => {
     session.value = data.session;
     user.value = data.session?.user ?? null;
     if (user.value) {
+      loginPush(user.value.id);
       await fetchOwnProfile();
     }
 
@@ -42,9 +51,12 @@ export const useAuthStore = defineStore('auth', () => {
       session.value = newSession;
       user.value = newSession?.user ?? null;
       if (user.value) {
+        // Geraet mit dem Nutzer verknuepfen, damit Push zugestellt werden kann.
+        loginPush(user.value.id);
         void fetchOwnProfile();
       } else {
         profile.value = null;
+        logoutPush();
       }
     });
 
@@ -102,11 +114,18 @@ export const useAuthStore = defineStore('auth', () => {
     profile.value = data as Profile;
   }
 
+  // Setzt den groben Standort (Stadt-Koordinaten) fuer die Umkreissuche.
+  async function setLocation(lat: number, lng: number) {
+    const { error } = await supabase.rpc('set_my_location', { p_lat: lat, p_lng: lng });
+    if (error) throw error;
+  }
+
   return {
     session,
     user,
     profile,
     initialized,
+    bannedNotice,
     isAuthenticated,
     init,
     signUp,
@@ -114,5 +133,6 @@ export const useAuthStore = defineStore('auth', () => {
     signOut,
     fetchOwnProfile,
     updateOwnProfile,
+    setLocation,
   };
 });

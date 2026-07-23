@@ -109,6 +109,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useGroupsStore } from '@/stores/groups-store';
 import { useAuthStore } from '@/stores/auth-store';
+import { useRealtime } from '@/composables/useRealtime';
 import type { Group, GroupMemberWithName } from '@/types/group';
 
 const route = useRoute();
@@ -127,17 +128,44 @@ const waitlistMembers = computed(() => members.value.filter((m) => m.status === 
 const isCreator = computed(() => group.value?.created_by === authStore.user?.id);
 const inviteLink = computed(() => `${window.location.origin}${window.location.pathname}#/groups/join/${groupId}`);
 
-async function load() {
-  loading.value = true;
+// Eigener Status vor dem letzten Laden - dient dem Vergleich beim Nachruecken.
+const myStatus = ref<string | null>(null);
+
+// silent = true bei Live-Aktualisierungen: kein Ladebalken, damit die Seite
+// beim automatischen Nachladen nicht flackert.
+async function load(silent = false) {
+  if (!silent) loading.value = true;
   try {
     group.value = await groupsStore.fetchGroup(groupId);
     if (group.value) {
       members.value = await groupsStore.fetchMembers(groupId);
     }
+
+    // Statuswechsel erkennen: waitlist -> active bedeutet, ich bin nachgerueckt.
+    // Bewusst ueber den Vorher/Nachher-Vergleich der geladenen Daten, denn im
+    // Live-Ereignis liefert Postgres standardmaessig nur den Primaerschluessel
+    // des alten Datensatzes - der alte Status waere dort nicht enthalten.
+    const previous = myStatus.value;
+    const current = members.value.find((m) => m.user_id === authStore.user?.id)?.status ?? null;
+    myStatus.value = current;
+
+    if (silent && previous === 'waitlist' && current === 'active') {
+      $q.notify({
+        message: 'Du bist nachgerückt und jetzt aktives Mitglied!',
+        color: 'positive',
+        icon: 'celebration',
+        timeout: 8000,
+      });
+    }
   } finally {
-    loading.value = false;
+    if (!silent) loading.value = false;
   }
 }
+
+// Live-Updates: Mitglieder dieser Gruppe beobachten (Beitritt, Austritt, Nachruecken).
+useRealtime('group_members', `group_id=eq.${groupId}`, () => {
+  void load(true);
+});
 
 async function copyInvite() {
   await navigator.clipboard.writeText(inviteLink.value);
