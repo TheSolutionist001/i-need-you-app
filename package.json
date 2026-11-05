@@ -9,6 +9,7 @@
     "dev": "quasar dev",
     "build": "quasar build",
     "typecheck": "vue-tsc --noEmit",
+    "test": "vitest run",
     "postinstall": "quasar prepare --silent"
   },
   "dependencies": {
@@ -26,6 +27,7 @@
     "@types/node": "^22.19.11",
     "autoprefixer": "^10.4.27",
     "typescript": "^6.0.0",
+    "vitest": "^3.2.7",
     "vue-tsc": "^3.3.3"
   },
   "keywords": [
