@@ -7,9 +7,21 @@
         <q-spinner size="32px" color="primary" />
       </div>
 
-      <div v-else-if="reports.length === 0" class="text-center text-grey q-pa-lg">
-        Keine offenen Meldungen.
-      </div>
+      <EmptyState
+        v-else-if="loadError"
+        icon="cloud_off"
+        title="Meldungen konnten nicht geladen werden"
+        text="Prüfe deine Internetverbindung und versuche es erneut."
+      >
+        <q-btn outline color="primary" icon="refresh" label="Erneut versuchen" @click="load" />
+      </EmptyState>
+
+      <EmptyState
+        v-else-if="reports.length === 0"
+        icon="verified_user"
+        title="Alles ruhig"
+        text="Es gibt keine offenen Meldungen."
+      />
 
       <q-list v-else bordered separator class="rounded-borders">
         <q-item v-for="r in reports" :key="r.report_id">
@@ -53,7 +65,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
+import EmptyState from '@/components/EmptyState.vue';
 import { useModerationStore } from '@/stores/moderation-store';
+import { notifyError } from '@/utils/notify';
 import { reportReasonOptions, type AdminReport, type ReportReason } from '@/types/report';
 
 const $q = useQuasar();
@@ -61,6 +75,7 @@ const moderationStore = useModerationStore();
 
 const reports = ref<AdminReport[]>([]);
 const loading = ref(true);
+const loadError = ref(false);
 
 function reasonLabel(reason: ReportReason | null): string {
   if (!reason) return '—';
@@ -84,6 +99,9 @@ async function load() {
   loading.value = true;
   try {
     reports.value = await moderationStore.listReports();
+    loadError.value = false;
+  } catch {
+    loadError.value = true;
   } finally {
     loading.value = false;
   }
@@ -95,9 +113,13 @@ function onDeletePost(postId: string) {
     message: 'Das Gesuch wird für alle endgültig gelöscht. Fortfahren?',
     cancel: true,
   }).onOk(async () => {
-    await moderationStore.deletePost(postId);
-    $q.notify({ message: 'Gesuch gelöscht.', color: 'positive', timeout: 2000 });
-    await load();
+    try {
+      await moderationStore.deletePost(postId);
+      $q.notify({ message: 'Gesuch gelöscht.', color: 'positive', timeout: 2000 });
+      await load();
+    } catch {
+      notifyError('Das Gesuch konnte nicht gelöscht werden.');
+    }
   });
 }
 

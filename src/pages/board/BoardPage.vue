@@ -10,7 +10,7 @@
       <q-card flat bordered class="q-pa-md q-mb-md">
         <div class="row items-center no-wrap q-gutter-md">
           <div class="text-caption text-grey" style="white-space: nowrap">Umkreis</div>
-          <q-slider v-model="radius" :min="5" :max="50" :step="5" label label-always :label-value="`${radius} km`" color="primary" @change="load" />
+          <q-slider v-model="radius" :min="5" :max="50" :step="5" label label-always :label-value="`${radius} km`" color="primary" @change="load()" />
         </div>
       </q-card>
 
@@ -18,16 +18,29 @@
         <q-spinner size="32px" color="primary" />
       </div>
 
-      <q-banner v-else-if="noLocation" class="bg-orange-1 text-orange-9 rounded-borders">
+      <div v-else-if="noLocation" class="nx-note nx-note--warning">
         Bitte hinterlege zuerst deine Stadt im
-        <router-link to="/profile" class="text-orange-9" style="text-decoration: underline">Profil</router-link>,
+        <router-link to="/profile">Profil</router-link>,
         damit wir Gesuche in deiner Nähe zeigen können.
-      </q-banner>
-
-      <div v-else-if="feed.length === 0" class="text-center text-grey q-pa-lg">
-        Keine Gesuche im Umkreis von {{ radius }} km. Zieh den Regler weiter oder erstelle
-        das erste Gesuch.
       </div>
+
+      <EmptyState
+        v-else-if="loadError"
+        icon="cloud_off"
+        title="Gesuche konnten nicht geladen werden"
+        text="Prüfe deine Internetverbindung und versuche es erneut."
+      >
+        <q-btn outline color="primary" icon="refresh" label="Erneut versuchen" @click="load()" />
+      </EmptyState>
+
+      <EmptyState
+        v-else-if="feed.length === 0"
+        icon="search"
+        :title="`Noch nichts im Umkreis von ${radius} km`"
+        text="Zieh den Regler weiter oder starte selbst das erste Gesuch."
+      >
+        <q-btn color="primary" unelevated icon="add" label="Gesuch erstellen" to="/board/new" />
+      </EmptyState>
 
       <q-list v-else bordered separator class="rounded-borders">
         <q-item v-for="post in feed" :key="post.id">
@@ -39,6 +52,7 @@
           <q-item-section>
             <q-item-label caption>
               {{ post.author_first_name ?? 'Unbekannt' }} · {{ formatDistance(post.distance_m) }}
+              · {{ formatRelativeTime(post.created_at) }}
             </q-item-label>
             <q-item-label class="q-mt-xs">{{ post.body }}</q-item-label>
             <q-item-label v-if="post.target_genders" caption class="q-mt-xs">
@@ -80,10 +94,13 @@
 import { ref, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import ReportDialog from '@/components/ReportDialog.vue';
+import EmptyState from '@/components/EmptyState.vue';
 import { useBoardStore } from '@/stores/board-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { useModerationStore } from '@/stores/moderation-store';
 import { useRealtime } from '@/composables/useRealtime';
+import { formatDistance, formatRelativeTime } from '@/utils/format';
+import { notifyError } from '@/utils/notify';
 import { genderOptions, type Gender } from '@/types/profile';
 import type { BoardFeedItem } from '@/types/board';
 import type { ReportReason } from '@/types/report';
@@ -97,6 +114,7 @@ const radius = ref(20);
 const feed = ref<BoardFeedItem[]>([]);
 const loading = ref(true);
 const noLocation = ref(false);
+const loadError = ref(false);
 
 const reportOpen = ref(false);
 const reportKind = ref<'post' | 'profile'>('post');
@@ -125,11 +143,6 @@ async function onReport(reason: ReportReason) {
   }
 }
 
-function formatDistance(m: number): string {
-  const km = m / 1000;
-  return km < 1 ? 'unter 1 km entfernt' : `ca. ${Math.round(km)} km entfernt`;
-}
-
 function genderLabels(values: Gender[]): string {
   return values.map((v) => genderOptions.find((o) => o.value === v)?.label ?? v).join(', ');
 }
@@ -145,6 +158,10 @@ async function load(silent = false) {
       return;
     }
     feed.value = await boardStore.fetchFeed(radius.value);
+    loadError.value = false;
+  } catch {
+    // Bei stillen Live-Aktualisierungen den bisherigen Feed stehen lassen.
+    if (!silent) loadError.value = true;
   } finally {
     if (!silent) loading.value = false;
   }
@@ -156,10 +173,20 @@ useRealtime('board_posts', null, () => {
   void load(true);
 });
 
-async function onDelete(id: string) {
-  await boardStore.deletePost(id);
-  feed.value = feed.value.filter((p) => p.id !== id);
+function onDelete(id: string) {
+  $q.dialog({
+    title: 'Gesuch löschen',
+    message: 'Möchtest du dein Gesuch wirklich löschen?',
+    cancel: true,
+  }).onOk(async () => {
+    try {
+      await boardStore.deletePost(id);
+      feed.value = feed.value.filter((p) => p.id !== id);
+    } catch {
+      notifyError('Das Gesuch konnte nicht gelöscht werden.');
+    }
+  });
 }
 
-onMounted(load);
+onMounted(() => load());
 </script>

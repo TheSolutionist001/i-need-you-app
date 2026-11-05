@@ -5,9 +5,14 @@
         <q-spinner size="32px" color="primary" />
       </div>
 
-      <div v-else-if="!preview" class="text-center text-grey q-pa-md">
-        Diese Einladung ist ungültig oder die Gruppe existiert nicht mehr.
-      </div>
+      <EmptyState
+        v-else-if="!preview"
+        icon="link_off"
+        title="Einladung ungültig"
+        text="Diese Einladung ist ungültig oder die Gruppe existiert nicht mehr."
+      >
+        <q-btn outline color="primary" label="Zu meinen Gruppen" to="/groups" />
+      </EmptyState>
 
       <template v-else>
         <q-card-section>
@@ -22,12 +27,12 @@
         </q-card-section>
 
         <q-card-section>
-          <q-banner v-if="preview.already_member" class="bg-blue-1 text-primary rounded-borders">
+          <div v-if="preview.already_member" class="nx-note nx-note--info">
             Du bist bereits in dieser Gruppe.
-          </q-banner>
-          <q-banner v-else-if="preview.is_full" class="bg-orange-1 text-orange-9 rounded-borders">
+          </div>
+          <div v-else-if="preview.is_full" class="nx-note nx-note--warning">
             Die Gruppe ist voll — du kommst auf die Warteliste.
-          </q-banner>
+          </div>
 
           <div v-if="errorMessage" class="text-negative text-caption q-mt-sm">{{ errorMessage }}</div>
 
@@ -60,6 +65,7 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
+import EmptyState from '@/components/EmptyState.vue';
 import { useGroupsStore } from '@/stores/groups-store';
 import type { GroupPreview } from '@/types/group';
 

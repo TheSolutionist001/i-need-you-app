@@ -80,11 +80,23 @@ export default defineConfig((/* ctx */) => {
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#framework
     framework: {
       config: {
-        dark: true
+        dark: true,
+        // Nexxup-Farben (aus dem Logo, Claude Design Variante 6a)
+        brand: {
+          primary: '#ff5a1f',
+          secondary: '#f3efe8',
+          accent: '#ff5a1f',
+          dark: '#1e1c17',
+          'dark-page': '#12110d',
+          positive: '#3ccf7c',
+          negative: '#ff5a5a',
+          info: '#5aa9ff',
+          warning: '#ffb020'
+        }
       },
 
       // iconSet: 'material-icons', // Quasar icon set
-      // lang: 'en-US', // Quasar language pack
+      lang: 'de-DE', // Quasar language pack (deutsche Dialog-Knoepfe)
 
       // For special cases outside of where the auto-import strategy can have an impact
       // (like functional components as one of the examples),
