@@ -5,9 +5,14 @@
         <q-spinner size="32px" color="primary" />
       </div>
 
-      <div v-else-if="!preview" class="text-center text-grey q-pa-md">
-        Diese Einladung ist ungültig oder die Gruppe existiert nicht mehr.
-      </div>
+      <EmptyState
+        v-else-if="!preview"
+        icon="link_off"
+        title="Einladung ungültig"
+        text="Diese Einladung ist ungültig oder die Gruppe existiert nicht mehr."
+      >
+        <q-btn outline color="primary" label="Zu meinen Gruppen" to="/groups" />
+      </EmptyState>
 
       <template v-else>
         <q-card-section>
@@ -60,6 +65,7 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
+import EmptyState from '@/components/EmptyState.vue';
 import { useGroupsStore } from '@/stores/groups-store';
 import type { GroupPreview } from '@/types/group';
 

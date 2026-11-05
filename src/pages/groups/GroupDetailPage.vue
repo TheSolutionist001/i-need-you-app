@@ -7,9 +7,21 @@
         <q-spinner size="32px" color="primary" />
       </div>
 
-      <div v-else-if="!group" class="text-center text-grey q-pa-lg">
-        Diese Gruppe existiert nicht oder du hast keinen Zugriff darauf.
-      </div>
+      <EmptyState
+        v-else-if="loadError"
+        icon="cloud_off"
+        title="Gruppe konnte nicht geladen werden"
+        text="Prüfe deine Internetverbindung und versuche es erneut."
+      >
+        <q-btn outline color="primary" icon="refresh" label="Erneut versuchen" @click="load()" />
+      </EmptyState>
+
+      <EmptyState
+        v-else-if="!group"
+        icon="lock"
+        title="Gruppe nicht gefunden"
+        text="Diese Gruppe existiert nicht (mehr) oder du hast keinen Zugriff darauf."
+      />
 
       <template v-else>
         <q-card flat bordered class="q-pa-md">
@@ -110,6 +122,8 @@ import { useQuasar } from 'quasar';
 import { useGroupsStore } from '@/stores/groups-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { useRealtime } from '@/composables/useRealtime';
+import EmptyState from '@/components/EmptyState.vue';
+import { notifyError, notifySuccess } from '@/utils/notify';
 import type { Group, GroupMemberWithName } from '@/types/group';
 
 const route = useRoute();
@@ -122,6 +136,7 @@ const groupId = route.params.id as string;
 const group = ref<Group | null>(null);
 const members = ref<GroupMemberWithName[]>([]);
 const loading = ref(true);
+const loadError = ref(false);
 
 const activeMembers = computed(() => members.value.filter((m) => m.status === 'active'));
 const waitlistMembers = computed(() => members.value.filter((m) => m.status === 'waitlist'));
@@ -157,6 +172,10 @@ async function load(silent = false) {
         timeout: 8000,
       });
     }
+    loadError.value = false;
+  } catch {
+    // Bei stillen Live-Aktualisierungen die bisherigen Daten stehen lassen.
+    if (!silent) loadError.value = true;
   } finally {
     if (!silent) loading.value = false;
   }
@@ -168,13 +187,21 @@ useRealtime('group_members', `group_id=eq.${groupId}`, () => {
 });
 
 async function copyInvite() {
-  await navigator.clipboard.writeText(inviteLink.value);
-  $q.notify({ message: 'Einladelink kopiert', color: 'positive', timeout: 1500 });
+  try {
+    await navigator.clipboard.writeText(inviteLink.value);
+    notifySuccess('Einladelink kopiert');
+  } catch {
+    notifyError('Kopieren nicht möglich. Bitte den Link von Hand markieren und kopieren.');
+  }
 }
 
 async function onTogglePublic(value: boolean) {
-  await groupsStore.togglePublic(groupId, value);
-  if (group.value) group.value.is_public_event = value;
+  try {
+    await groupsStore.togglePublic(groupId, value);
+    if (group.value) group.value.is_public_event = value;
+  } catch {
+    notifyError('Die Einstellung konnte nicht gespeichert werden.');
+  }
 }
 
 function onLeave() {
@@ -183,8 +210,12 @@ function onLeave() {
     message: 'Möchtest du diese Gruppe wirklich verlassen?',
     cancel: true,
   }).onOk(async () => {
-    await groupsStore.leaveGroup(groupId);
-    await router.push('/groups');
+    try {
+      await groupsStore.leaveGroup(groupId);
+      await router.push('/groups');
+    } catch {
+      notifyError('Austritt fehlgeschlagen. Bitte versuche es erneut.');
+    }
   });
 }
 
@@ -194,10 +225,14 @@ function onDelete() {
     message: 'Die Gruppe wird endgültig gelöscht. Fortfahren?',
     cancel: true,
   }).onOk(async () => {
-    await groupsStore.deleteGroup(groupId);
-    await router.push('/groups');
+    try {
+      await groupsStore.deleteGroup(groupId);
+      await router.push('/groups');
+    } catch {
+      notifyError('Die Gruppe konnte nicht gelöscht werden.');
+    }
   });
 }
 
-onMounted(load);
+onMounted(() => load());
 </script>
