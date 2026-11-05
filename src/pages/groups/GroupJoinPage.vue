@@ -22,12 +22,12 @@
         </q-card-section>
 
         <q-card-section>
-          <q-banner v-if="preview.already_member" class="bg-blue-1 text-primary rounded-borders">
+          <div v-if="preview.already_member" class="nx-note nx-note--info">
             Du bist bereits in dieser Gruppe.
-          </q-banner>
-          <q-banner v-else-if="preview.is_full" class="bg-orange-1 text-orange-9 rounded-borders">
+          </div>
+          <div v-else-if="preview.is_full" class="nx-note nx-note--warning">
             Die Gruppe ist voll — du kommst auf die Warteliste.
-          </q-banner>
+          </div>
 
           <div v-if="errorMessage" class="text-negative text-caption q-mt-sm">{{ errorMessage }}</div>
 

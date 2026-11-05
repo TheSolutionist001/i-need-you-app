@@ -18,11 +18,11 @@
         <q-spinner size="32px" color="primary" />
       </div>
 
-      <q-banner v-else-if="noLocation" class="bg-orange-1 text-orange-9 rounded-borders">
+      <div v-else-if="noLocation" class="nx-note nx-note--warning">
         Bitte hinterlege zuerst deine Stadt im
-        <router-link to="/profile" class="text-orange-9" style="text-decoration: underline">Profil</router-link>,
+        <router-link to="/profile">Profil</router-link>,
         damit wir Gesuche in deiner Nähe zeigen können.
-      </q-banner>
+      </div>
 
       <div v-else-if="feed.length === 0" class="text-center text-grey q-pa-lg">
         Keine Gesuche im Umkreis von {{ radius }} km. Zieh den Regler weiter oder erstelle

@@ -1,5 +1,6 @@
 <template>
-  <div class="flex flex-center" style="min-height: 100vh">
+  <div class="flex flex-center column q-pa-md" style="min-height: 100vh">
+    <NexxupLogo :size="96" wordmark background="#12110d" class="q-mb-xl" />
     <q-card v-if="!registered" class="q-pa-lg" style="width: 100%; max-width: 360px">
       <q-card-section>
         <div class="text-h6">Konto erstellen</div>
@@ -73,6 +74,7 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import CitySelect from '@/components/CitySelect.vue';
+import NexxupLogo from '@/components/NexxupLogo.vue';
 import { useAuthStore } from '@/stores/auth-store';
 import { genderOptions, type Gender } from '@/types/profile';
 import type { City } from '@/data/german-cities';
