@@ -2,32 +2,56 @@ import { ref } from 'vue';
 import { defineStore } from 'pinia';
 import { supabase } from '@/boot/supabase';
 import type {
+  DiscoverGroup,
   Group,
   GroupMemberStatus,
   GroupMemberWithName,
   GroupPreview,
+  NewGroupInput,
 } from '@/types/group';
 
 export const useGroupsStore = defineStore('groups', () => {
-  const myGroups = ref<Group[]>([]);
+  const myGroups = ref<DiscoverGroup[]>([]);
 
-  async function createGroup(name: string, description: string, maxMembers: number): Promise<string> {
+  async function createGroup(input: NewGroupInput): Promise<string> {
     const { data, error } = await supabase.rpc('create_group', {
-      p_name: name,
-      p_description: description || null,
-      p_max_members: maxMembers,
+      p_name: input.name,
+      p_description: input.description || null,
+      p_max_members: input.maxMembers,
+      p_sport: input.sport,
+      p_next_meetup_at: input.nextMeetupAt,
+      p_city: input.city,
+      p_lat: input.lat,
+      p_lng: input.lng,
     });
     if (error) throw error;
     return data as string;
   }
 
-  async function fetchMyGroups() {
-    const { data, error } = await supabase
-      .from('groups')
-      .select('*')
-      .order('created_at', { ascending: false });
+  // radiusKm = null: nur eigene Gruppen (Mitglied oder Warteliste).
+  // Sonst zusaetzlich oeffentliche Gruppen im Umkreis (serverseitig per RLS gefiltert).
+  async function discoverGroups(radiusKm: number | null): Promise<DiscoverGroup[]> {
+    const { data, error } = await supabase.rpc('discover_groups', { p_radius_km: radiusKm });
     if (error) throw error;
-    myGroups.value = (data ?? []) as Group[];
+    return (data ?? []) as DiscoverGroup[];
+  }
+
+  async function fetchMyGroups() {
+    myGroups.value = await discoverGroups(null);
+  }
+
+  async function fetchActiveCount(groupId: string): Promise<number> {
+    const { data, error } = await supabase.rpc('group_active_count', { p_group_id: groupId });
+    if (error) throw error;
+    return (data as number) ?? 0;
+  }
+
+  async function updateMeetup(groupId: string, nextMeetupAt: string | null): Promise<void> {
+    const { error } = await supabase
+      .from('groups')
+      .update({ next_meetup_at: nextMeetupAt })
+      .eq('id', groupId);
+    if (error) throw error;
   }
 
   async function fetchGroup(id: string): Promise<Group | null> {
@@ -97,7 +121,10 @@ export const useGroupsStore = defineStore('groups', () => {
   return {
     myGroups,
     createGroup,
+    discoverGroups,
     fetchMyGroups,
+    updateMeetup,
+    fetchActiveCount,
     fetchGroup,
     fetchMembers,
     joinGroup,

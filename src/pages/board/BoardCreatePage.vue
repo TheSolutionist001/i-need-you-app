@@ -8,6 +8,10 @@
 
       <q-card-section>
         <q-form class="q-gutter-md" @submit="onSubmit">
+          <div>
+            <div class="text-caption text-grey q-mb-xs">Sportart</div>
+            <SportPicker v-model="sport" />
+          </div>
           <q-input
             v-model="body"
             label="Dein Gesuch"
@@ -46,6 +50,7 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import CitySelect from '@/components/CitySelect.vue';
+import SportPicker from '@/components/SportPicker.vue';
 import { useBoardStore } from '@/stores/board-store';
 import { genderOptions, type Gender } from '@/types/profile';
 import type { City } from '@/data/german-cities';
@@ -54,6 +59,7 @@ const router = useRouter();
 const boardStore = useBoardStore();
 
 const body = ref('');
+const sport = ref('sonstiges');
 const targetGenders = ref<Gender[]>([]);
 const city = ref<string | null>(null);
 const selectedCity = ref<City | null>(null);
@@ -80,6 +86,7 @@ async function onSubmit() {
       targetGenders.value,
       selectedCity.value.lat,
       selectedCity.value.lng,
+      sport.value,
     );
     await router.push('/board');
   } catch {

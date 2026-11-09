@@ -9,4 +9,5 @@ export interface BoardFeedItem {
   author_id: string;
   author_first_name: string | null;
   distance_m: number;
+  sport: string;
 }

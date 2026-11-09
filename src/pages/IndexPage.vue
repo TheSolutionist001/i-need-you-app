@@ -1,74 +1,219 @@
 <template>
-  <q-page class="q-pa-md">
-    <div style="max-width: 600px; margin: 0 auto">
-      <div class="q-mt-md q-mb-lg">
-        <div class="text-h5">Hallo {{ authStore.profile?.first_name ?? '' }}</div>
-        <div class="text-grey q-mt-xs">
-          <template v-if="authStore.profile?.city">
-            <q-icon name="place" size="16px" /> {{ authStore.profile.city }}
-          </template>
-          <template v-else>Lust auf Sport mit anderen?</template>
+  <q-page class="q-px-md q-pb-xl">
+    <div style="max-width: 720px; margin: 0 auto">
+      <!-- Begruessung -->
+      <div class="row items-start no-wrap q-pt-lg">
+        <div class="col">
+          <div class="text-caption text-grey">
+            <q-icon name="place" size="14px" />
+            <template v-if="authStore.profile?.city"> {{ authStore.profile.city }} · {{ RADIUS_KM }} km</template>
+            <template v-else> Kein Ort hinterlegt</template>
+          </div>
+          <div class="nx-display q-mt-xs" style="font-size: 24px; line-height: 1.15">
+            Hey {{ authStore.profile?.first_name ?? '' }},<br />
+            <span class="text-primary">Lust auf Sport?</span>
+          </div>
         </div>
+        <q-avatar color="primary" size="44px" class="cursor-pointer" @click="router.push('/profile')">
+          {{ (authStore.profile?.first_name?.[0] ?? '?').toUpperCase() }}
+        </q-avatar>
       </div>
 
-      <div v-if="!authStore.profile?.city" class="nx-note nx-note--warning q-mb-md">
+      <div v-if="!authStore.profile?.city" class="nx-note nx-note--warning q-mt-md">
         Hinterlege deine Stadt im <router-link to="/profile">Profil</router-link>, damit du
-        Gesuche in deiner Nähe siehst.
+        Gruppen und Gesuche in deiner Nähe siehst.
       </div>
 
-      <div class="column q-gutter-md">
-        <q-card v-for="tile in tiles" :key="tile.to" v-ripple class="cursor-pointer nx-tile" @click="router.push(tile.to)">
-          <q-card-section class="row items-center no-wrap q-gutter-md">
-            <div class="nx-tile__icon flex flex-center">
-              <q-icon :name="tile.icon" size="26px" />
-            </div>
-            <div class="col">
-              <div class="text-subtitle1 text-weight-bold">{{ tile.title }}</div>
-              <div class="text-body2 text-grey">{{ tile.text }}</div>
-            </div>
-            <q-icon name="chevron_right" size="24px" class="text-grey" />
-          </q-card-section>
+      <!-- Suche + Sportart-Filter -->
+      <q-input
+        v-model="search"
+        class="nx-search q-mt-md"
+        outlined
+        dense
+        clearable
+        placeholder="Sportart, Gruppe, Gesuch …"
+      >
+        <template #prepend><q-icon name="search" /></template>
+      </q-input>
+      <SportChips v-model="sportFilter" class="q-mt-sm" />
+
+      <div v-if="loading" class="text-center q-pa-xl">
+        <q-spinner size="32px" color="primary" />
+      </div>
+
+      <EmptyState
+        v-else-if="loadError"
+        icon="cloud_off"
+        title="Inhalte konnten nicht geladen werden"
+        text="Prüfe deine Internetverbindung und versuche es erneut."
+      >
+        <q-btn outline color="primary" icon="refresh" label="Erneut versuchen" @click="load()" />
+      </EmptyState>
+
+      <template v-else>
+        <!-- Gruppen in der Naehe -->
+        <div class="nx-section">
+          <div class="nx-section__title">In deiner Nähe</div>
+          <router-link to="/groups">Meine Gruppen</router-link>
+        </div>
+        <div v-if="nearbyGroups.length > 0" class="nx-scroller">
+          <GroupCard v-for="g in nearbyGroups" :key="g.id" :group="g" />
+        </div>
+        <q-card v-else class="q-pa-md text-center">
+          <div class="text-body2 text-grey">
+            {{ filtering ? 'Keine passenden Gruppen gefunden.' : 'Noch keine öffentlichen Gruppen in deiner Nähe.' }}
+          </div>
+          <q-btn v-if="!filtering" flat color="primary" icon="group_add" label="Erste Gruppe gründen" to="/groups/new" class="q-mt-xs" />
         </q-card>
-      </div>
 
-      <div class="text-overline text-grey q-mt-xl q-mb-sm">Schnell starten</div>
-      <div class="row q-col-gutter-sm">
-        <div class="col-6">
-          <q-btn color="primary" unelevated icon="add" label="Gesuch" to="/board/new" class="full-width" />
+        <!-- Eigene Termine -->
+        <template v-if="upcoming.length > 0">
+          <div class="nx-section"><div class="nx-section__title">Deine nächsten Termine</div></div>
+          <div class="column q-gutter-sm">
+            <q-card
+              v-for="g in upcoming"
+              :key="g.id"
+              v-ripple
+              class="cursor-pointer"
+              @click="router.push(`/groups/${g.id}`)"
+            >
+              <div class="row items-center no-wrap q-pa-sm" style="gap: 12px">
+                <div class="nx-day">
+                  <div class="nx-day__wd">{{ meetupDayParts(g.next_meetup_at!).weekday }}</div>
+                  <div class="nx-day__d">{{ meetupDayParts(g.next_meetup_at!).day }}</div>
+                </div>
+                <div class="col" style="min-width: 0">
+                  <div class="text-weight-bold ellipsis">{{ getSport(g.sport).emoji }} {{ g.name }}</div>
+                  <div class="text-caption text-grey">
+                    {{ formatMeetup(g.next_meetup_at!) }} ·
+                    {{ g.my_status === 'active' ? 'du bist dabei ✓' : 'Warteliste' }}
+                  </div>
+                </div>
+                <q-icon name="chevron_right" size="22px" class="text-grey" />
+              </div>
+            </q-card>
+          </div>
+        </template>
+
+        <!-- Neu am Brett -->
+        <div class="nx-section">
+          <div class="nx-section__title">Neu am Brett</div>
+          <router-link to="/board">Alle</router-link>
         </div>
-        <div class="col-6">
-          <q-btn outline color="primary" icon="group_add" label="Gruppe" to="/groups/new" class="full-width" />
+        <div v-if="latestPosts.length > 0" class="column q-gutter-sm">
+          <PostCard v-for="p in latestPosts" :key="p.id" :post="p" clamp class="cursor-pointer" @click="router.push('/board')" />
         </div>
-      </div>
+        <q-card v-else class="q-pa-md text-center">
+          <div class="text-body2 text-grey">
+            {{ filtering ? 'Keine passenden Gesuche gefunden.' : 'Gerade keine Gesuche in deiner Nähe.' }}
+          </div>
+          <q-btn v-if="!filtering" flat color="primary" icon="add" label="Gesuch aufgeben" to="/board/new" class="q-mt-xs" />
+        </q-card>
+      </template>
     </div>
   </q-page>
 </template>
 
 <script setup lang="ts">
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import EmptyState from '@/components/EmptyState.vue';
+import GroupCard from '@/components/GroupCard.vue';
+import PostCard from '@/components/PostCard.vue';
+import SportChips from '@/components/SportChips.vue';
 import { useAuthStore } from '@/stores/auth-store';
+import { useGroupsStore } from '@/stores/groups-store';
+import { useBoardStore } from '@/stores/board-store';
+import { useRealtime } from '@/composables/useRealtime';
+import { getSport } from '@/data/sports';
+import { formatMeetup, isUpcoming, meetupDayParts } from '@/utils/format';
+import { matchesSearch } from '@/utils/search';
+import type { DiscoverGroup } from '@/types/group';
+import type { BoardFeedItem } from '@/types/board';
+
+const RADIUS_KM = 20;
 
 const router = useRouter();
 const authStore = useAuthStore();
+const groupsStore = useGroupsStore();
+const boardStore = useBoardStore();
 
-const tiles = [
-  { to: '/board', icon: 'dashboard', title: 'Schwarzes Brett', text: 'Spontane Gesuche in deiner Nähe' },
-  { to: '/groups', icon: 'groups', title: 'Meine Gruppen', text: 'Deine Gruppen und Wartelisten' },
-];
+const groups = ref<DiscoverGroup[]>([]);
+const posts = ref<BoardFeedItem[]>([]);
+const loading = ref(true);
+const loadError = ref(false);
+const search = ref<string | null>('');
+const sportFilter = ref<string | null>(null);
+
+const filtering = computed(() => !!search.value || !!sportFilter.value);
+
+function visible(sport: string, ...texts: (string | null)[]): boolean {
+  if (sportFilter.value && sport !== sportFilter.value) return false;
+  return matchesSearch(search.value, [getSport(sport).label, ...texts]);
+}
+
+// Fremde, oeffentliche Gruppen: kommende Termine zuerst.
+const nearbyGroups = computed(() =>
+  groups.value
+    .filter((g) => !g.my_status && visible(g.sport, g.name, g.description, g.city))
+    .sort((a, b) => Number(isUpcoming(b.next_meetup_at)) - Number(isUpcoming(a.next_meetup_at))),
+);
+
+const upcoming = computed(() =>
+  groups.value
+    .filter((g) => g.my_status && isUpcoming(g.next_meetup_at) && visible(g.sport, g.name, g.description))
+    .sort((a, b) => (a.next_meetup_at ?? '').localeCompare(b.next_meetup_at ?? ''))
+    .slice(0, 3),
+);
+
+const latestPosts = computed(() =>
+  posts.value.filter((p) => visible(p.sport, p.body, p.author_first_name)).slice(0, 3),
+);
+
+// silent = true bei Live-Aktualisierungen (kein Ladekreis, alte Daten bleiben bei Fehler)
+async function load(silent = false) {
+  if (!silent) loading.value = true;
+  try {
+    const hasCity = !!authStore.profile?.city;
+    const [g, p] = await Promise.all([
+      groupsStore.discoverGroups(RADIUS_KM),
+      hasCity ? boardStore.fetchFeed(RADIUS_KM) : Promise.resolve([]),
+    ]);
+    groups.value = g;
+    posts.value = p;
+    loadError.value = false;
+  } catch {
+    if (!silent) loadError.value = true;
+  } finally {
+    if (!silent) loading.value = false;
+  }
+}
+
+onMounted(() => load());
+
+useRealtime('board_posts', null, () => void load(true));
+useRealtime('groups', null, () => void load(true));
 </script>
 
 <style scoped>
-.nx-tile {
-  transition: border-color 0.15s;
-}
-.nx-tile:hover {
-  border-color: rgba(255, 90, 31, 0.4);
-}
-.nx-tile__icon {
-  width: 48px;
-  height: 48px;
+.nx-day {
+  width: 52px;
+  height: 56px;
   border-radius: 14px;
-  background: rgba(255, 90, 31, 0.12);
+  background: rgba(255, 90, 31, 0.14);
+  text-align: center;
+  padding-top: 7px;
+  flex-shrink: 0;
+}
+.nx-day__wd {
   color: var(--nx-accent);
+  font-size: 11px;
+  font-weight: 700;
+}
+.nx-day__d {
+  font-family: 'Unbounded Variable', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.1;
 }
 </style>

@@ -2,7 +2,7 @@
   <q-page class="flex flex-center">
     <q-card class="q-pa-lg" style="width: 100%; max-width: 360px">
       <q-card-section class="text-center">
-        <q-avatar color="primary" text-color="white" size="56px">
+        <q-avatar color="primary" size="56px">
           {{ initials }}
         </q-avatar>
         <div class="text-h6 q-mt-sm">{{ authStore.profile?.first_name }}</div>
@@ -67,6 +67,15 @@
           </div>
         </template>
       </q-card-section>
+
+      <template v-if="authStore.profile?.is_admin">
+        <q-separator />
+        <q-item clickable to="/admin" class="q-py-md">
+          <q-item-section avatar><q-icon name="shield" color="primary" /></q-item-section>
+          <q-item-section>Moderation</q-item-section>
+          <q-item-section side><q-icon name="chevron_right" /></q-item-section>
+        </q-item>
+      </template>
 
       <q-card-section class="text-center">
         <q-btn flat color="negative" label="Abmelden" @click="onLogout" />
