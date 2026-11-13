@@ -52,6 +52,9 @@ export interface DiscoverGroup {
   active_count: number;
   my_status: GroupMemberStatus | null;
   distance_m: number | null;
+  // Ungefaehre Position (Stadt, auf ~1 km gerundet) fuer die Karte
+  lat?: number | null;
+  lng?: number | null;
 }
 
 export interface NewGroupInput {

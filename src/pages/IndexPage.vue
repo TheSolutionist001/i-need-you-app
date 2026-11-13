@@ -37,6 +37,20 @@
       </q-input>
       <SportChips v-model="sportFilter" class="q-mt-sm" />
 
+      <q-btn-toggle
+        v-model="view"
+        class="nx-viewtoggle q-mt-md"
+        spread
+        no-caps
+        unelevated
+        toggle-color="primary"
+        toggle-text-color="dark"
+        :options="[
+          { label: 'Liste', value: 'list', icon: 'view_agenda' },
+          { label: 'Karte', value: 'map', icon: 'map' },
+        ]"
+      />
+
       <div v-if="loading" class="text-center q-pa-xl">
         <q-spinner size="32px" color="primary" />
       </div>
@@ -49,6 +63,49 @@
       >
         <q-btn outline color="primary" icon="refresh" label="Erneut versuchen" @click="load()" />
       </EmptyState>
+
+      <!-- Kartenansicht -->
+      <template v-else-if="view === 'map'">
+        <DiscoverMap
+          class="q-mt-md"
+          :items="mapItems"
+          :center="myLocation"
+          :radius-km="RADIUS_KM"
+          :selected-id="selectedId"
+          @select="(id) => (selectedId = id)"
+        />
+        <div class="text-caption text-grey q-mt-xs">
+          {{ mapItems.length }} {{ mapItems.length === 1 ? 'Angebot' : 'Angebote' }} im Umkreis von
+          {{ RADIUS_KM }} km · Orte sind ungefähr (Stadtgebiet)
+        </div>
+
+        <div class="q-mt-md">
+          <GroupCard v-if="selectedGroup" :group="selectedGroup" />
+          <template v-else-if="selectedPost">
+            <PostCard :post="selectedPost" featured />
+            <q-btn
+              flat
+              no-caps
+              color="primary"
+              icon-right="chevron_right"
+              label="Am Brett ansehen"
+              class="q-mt-xs"
+              to="/board"
+            />
+          </template>
+          <q-card v-else class="q-pa-md text-center">
+            <div class="text-body2 text-grey">
+              {{
+                mapItems.length > 0
+                  ? 'Tippe auf ein Symbol, um Details zu sehen.'
+                  : filtering
+                    ? 'Keine passenden Angebote auf der Karte.'
+                    : 'Gerade nichts in deiner Nähe – starte doch selbst etwas!'
+              }}
+            </div>
+          </q-card>
+        </div>
+      </template>
 
       <template v-else>
         <!-- Gruppen in der Naehe -->
@@ -115,8 +172,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import DiscoverMap from '@/components/DiscoverMap.vue';
+import type { MapItem } from '@/utils/map';
 import EmptyState from '@/components/EmptyState.vue';
 import GroupCard from '@/components/GroupCard.vue';
 import PostCard from '@/components/PostCard.vue';
@@ -145,6 +204,26 @@ const loadError = ref(false);
 const search = ref<string | null>('');
 const sportFilter = ref<string | null>(null);
 
+const myLocation = ref<{ lat: number; lng: number } | null>(null);
+
+// Ansicht: Liste oder Karte (pro Geraet gemerkt)
+const VIEW_KEY = 'nx-discover-view';
+function readView(): 'list' | 'map' {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'map' ? 'map' : 'list';
+  } catch {
+    return 'list';
+  }
+}
+const view = ref<'list' | 'map'>(readView());
+watch(view, (v) => {
+  try {
+    localStorage.setItem(VIEW_KEY, v);
+  } catch {
+    // z. B. privates Fenster - dann eben nicht merken
+  }
+});
+
 const filtering = computed(() => !!search.value || !!sportFilter.value);
 
 function visible(sport: string, ...texts: (string | null)[]): boolean {
@@ -170,6 +249,36 @@ const latestPosts = computed(() =>
   posts.value.filter((p) => visible(p.sport, p.body, p.author_first_name)).slice(0, 3),
 );
 
+// Karte: alle sichtbaren Gruppen und Gesuche mit (ungefaehrer) Position
+const mapGroups = computed(() =>
+  groups.value.filter((g) => g.lat != null && g.lng != null && visible(g.sport, g.name, g.description, g.city)),
+);
+const mapPosts = computed(() =>
+  posts.value.filter((p) => p.lat != null && p.lng != null && visible(p.sport, p.body, p.author_first_name)),
+);
+const mapItems = computed<MapItem[]>(() => [
+  ...mapGroups.value.map((g) => ({
+    id: g.id,
+    kind: 'group' as const,
+    lat: g.lat!,
+    lng: g.lng!,
+    emoji: getSport(g.sport).emoji,
+    color: getSport(g.sport).from,
+  })),
+  ...mapPosts.value.map((p) => ({
+    id: p.id,
+    kind: 'post' as const,
+    lat: p.lat!,
+    lng: p.lng!,
+    emoji: getSport(p.sport).emoji,
+    color: getSport(p.sport).from,
+  })),
+]);
+
+const selectedId = ref<string | null>(null);
+const selectedGroup = computed(() => mapGroups.value.find((g) => g.id === selectedId.value) ?? null);
+const selectedPost = computed(() => mapPosts.value.find((p) => p.id === selectedId.value) ?? null);
+
 // silent = true bei Live-Aktualisierungen (kein Ladekreis, alte Daten bleiben bei Fehler)
 async function load(silent = false) {
   if (!silent) loading.value = true;
@@ -181,6 +290,9 @@ async function load(silent = false) {
     ]);
     groups.value = g;
     posts.value = p;
+    if (!myLocation.value && hasCity) {
+      myLocation.value = await authStore.fetchMyLocation().catch(() => null);
+    }
     loadError.value = false;
   } catch {
     if (!silent) loadError.value = true;
@@ -196,6 +308,11 @@ useRealtime('groups', null, () => void load(true));
 </script>
 
 <style scoped>
+.nx-viewtoggle {
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--nx-surface);
+}
 .nx-day {
   width: 52px;
   height: 56px;
