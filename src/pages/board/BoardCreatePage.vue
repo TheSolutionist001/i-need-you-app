@@ -47,16 +47,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import CitySelect from '@/components/CitySelect.vue';
 import SportPicker from '@/components/SportPicker.vue';
 import { useBoardStore } from '@/stores/board-store';
+import { useAuthStore } from '@/stores/auth-store';
 import { genderOptions, type Gender } from '@/types/profile';
-import type { City } from '@/data/german-cities';
+import type { City } from '@/utils/geocode';
 
 const router = useRouter();
 const boardStore = useBoardStore();
+const authStore = useAuthStore();
 
 const body = ref('');
 const sport = ref('sonstiges');
@@ -66,6 +68,20 @@ const selectedCity = ref<City | null>(null);
 const loading = ref(false);
 const errorMessage = ref('');
 const cityError = ref('');
+
+// Wohnort aus dem Profil vorbelegen (kann geaendert werden).
+onMounted(async () => {
+  try {
+    const loc = await authStore.fetchMyLocation();
+    const name = authStore.profile?.city;
+    if (loc && name && !selectedCity.value) {
+      city.value = name;
+      selectedCity.value = { name, ...loc };
+    }
+  } catch {
+    // Ohne Vorbelegung weiter.
+  }
+});
 
 function onCity(c: City | null) {
   selectedCity.value = c;

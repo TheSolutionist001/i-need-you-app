@@ -64,6 +64,23 @@
           </div>
         </q-card>
 
+        <!-- Treffpunkt: nur Mitglieder/Ersteller (RLS liefert Fremden nichts) -->
+        <template v-if="isMember || isCreator">
+          <MeetupPlaceCard v-if="meetupPlace" :place="meetupPlace" class="q-mt-md">
+            <q-btn v-if="isCreator" flat no-caps color="primary" label="Ändern" @click="openPlaceDialog" />
+          </MeetupPlaceCard>
+          <q-card v-else-if="isCreator" flat bordered class="q-pa-md q-mt-md">
+            <div class="row items-center no-wrap">
+              <q-icon name="place" size="22px" class="text-primary q-mr-sm" />
+              <div class="col text-body2 text-grey">Noch kein Treffpunkt festgelegt.</div>
+              <q-btn flat no-caps color="primary" label="Festlegen" @click="openPlaceDialog" />
+            </div>
+          </q-card>
+        </template>
+        <div v-else class="nx-note nx-note--info q-mt-md">
+          Den genauen Treffpunkt siehst du, sobald du der Gruppe beigetreten bist.
+        </div>
+
         <!-- Einladelink + Mitglieder nur fuer Mitglieder (RLS zeigt Fremden ohnehin keine Namen) -->
         <template v-if="isMember || isCreator">
         <q-card flat bordered class="q-pa-md q-mt-md">
@@ -166,6 +183,24 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <q-dialog v-model="placeOpen">
+      <q-card style="width: 100%; max-width: 420px">
+        <q-card-section>
+          <div class="text-h6">Treffpunkt</div>
+          <div class="text-caption text-grey">Halle, Platz oder Adresse suchen</div>
+        </q-card-section>
+        <q-card-section>
+          <PlaceSelect v-model="placeInput" :near="myLocation" />
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn v-if="meetupPlace" flat no-caps color="negative" label="Entfernen" @click="savePlace(null)" />
+          <q-space />
+          <q-btn v-close-popup flat no-caps label="Abbrechen" />
+          <q-btn unelevated no-caps color="primary" label="Speichern" :disable="!placeInput" @click="savePlace(placeInput)" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -177,6 +212,9 @@ import { useGroupsStore } from '@/stores/groups-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { useRealtime } from '@/composables/useRealtime';
 import EmptyState from '@/components/EmptyState.vue';
+import MeetupPlaceCard from '@/components/MeetupPlaceCard.vue';
+import PlaceSelect from '@/components/PlaceSelect.vue';
+import type { Place } from '@/utils/geocode';
 import { notifyError, notifySuccess } from '@/utils/notify';
 import { getSport, sportGradient } from '@/data/sports';
 import { formatMeetup } from '@/utils/format';
@@ -229,6 +267,35 @@ async function saveMeetup(value: string | null) {
     notifyError('Der Termin konnte nicht gespeichert werden.');
   }
 }
+// Treffpunkt (nur fuer Mitglieder/Ersteller lesbar; aendern nur Ersteller)
+const meetupPlace = ref<Place | null>(null);
+const placeOpen = ref(false);
+const placeInput = ref<Place | null>(null);
+const myLocation = ref<{ lat: number; lng: number } | null>(null);
+
+async function openPlaceDialog() {
+  placeInput.value = meetupPlace.value;
+  placeOpen.value = true;
+  if (!myLocation.value) {
+    try {
+      myLocation.value = await authStore.fetchMyLocation();
+    } catch {
+      // Suche funktioniert auch ohne Gewichtung.
+    }
+  }
+}
+
+async function savePlace(value: Place | null) {
+  try {
+    await groupsStore.saveMeetupPlace(groupId, value);
+    meetupPlace.value = value;
+    placeOpen.value = false;
+    notifySuccess(value ? 'Treffpunkt gespeichert' : 'Treffpunkt entfernt');
+  } catch {
+    notifyError('Der Treffpunkt konnte nicht gespeichert werden.');
+  }
+}
+
 const inviteLink = computed(() => `${window.location.origin}${window.location.pathname}#/groups/join/${groupId}`);
 
 // Eigener Status vor dem letzten Laden - dient dem Vergleich beim Nachruecken.
@@ -242,7 +309,13 @@ async function load(silent = false) {
     group.value = await groupsStore.fetchGroup(groupId);
     if (group.value) {
       members.value = await groupsStore.fetchMembers(groupId);
-      if (!members.value.some((m) => m.user_id === authStore.user?.id)) {
+      const memberOrCreator =
+        group.value.created_by === authStore.user?.id ||
+        members.value.some((m) => m.user_id === authStore.user?.id);
+      if (memberOrCreator) {
+        meetupPlace.value = await groupsStore.fetchMeetupPlace(groupId);
+      } else {
+        meetupPlace.value = null;
         publicCount.value = await groupsStore.fetchActiveCount(groupId);
       }
     }
@@ -274,6 +347,11 @@ async function load(silent = false) {
 
 // Live-Updates: Mitglieder dieser Gruppe beobachten (Beitritt, Austritt, Nachruecken).
 useRealtime('group_members', `group_id=eq.${groupId}`, () => {
+  void load(true);
+});
+
+// Treffpunkt-Aenderungen des Erstellers live uebernehmen.
+useRealtime('group_meetup_places', `group_id=eq.${groupId}`, () => {
   void load(true);
 });
 

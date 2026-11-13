@@ -34,6 +34,11 @@
             hint="Erscheint auf der Startseite unter „Deine nächsten Termine“"
           />
 
+          <PlaceSelect v-model="place" label="Treffpunkt (optional)" :near="myLocation" />
+          <div class="text-caption text-grey" style="margin-top: 4px">
+            Den genauen Treffpunkt sehen nur Mitglieder – mit Route zu Google Maps.
+          </div>
+
           <CitySelect v-model="city" label="Stadt (optional)" @select="onCity" />
 
           <q-toggle v-model="isPublic" label="Öffentlich – in „Entdecken“ für Leute in der Nähe zeigen" />
@@ -55,31 +60,46 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import CitySelect from '@/components/CitySelect.vue';
+import PlaceSelect from '@/components/PlaceSelect.vue';
 import SportPicker from '@/components/SportPicker.vue';
 import { useGroupsStore } from '@/stores/groups-store';
 import { useAuthStore } from '@/stores/auth-store';
-import { findCity, type City } from '@/data/german-cities';
+import { notifyError } from '@/utils/notify';
+import type { City, Place } from '@/utils/geocode';
 
 const router = useRouter();
 const groupsStore = useGroupsStore();
 const authStore = useAuthStore();
-
-// Stadt aus dem Profil vorbelegen (nur wenn sie in der Liste steht).
-const profileCity = findCity(authStore.profile?.city ?? null) ?? null;
 
 const sport = ref('sonstiges');
 const name = ref('');
 const description = ref('');
 const maxMembers = ref(10);
 const meetupAt = ref('');
-const city = ref<string | null>(profileCity?.name ?? null);
-const selectedCity = ref<City | null>(profileCity);
+const city = ref<string | null>(null);
+const selectedCity = ref<City | null>(null);
+const place = ref<Place | null>(null);
+const myLocation = ref<{ lat: number; lng: number } | null>(null);
 const isPublic = ref(false);
 const loading = ref(false);
 const errorMessage = ref('');
+
+// Stadt aus dem Profil vorbelegen (Name + gespeicherte Stadt-Koordinaten).
+onMounted(async () => {
+  try {
+    myLocation.value = await authStore.fetchMyLocation();
+    const profileCity = authStore.profile?.city;
+    if (myLocation.value && profileCity && !selectedCity.value) {
+      city.value = profileCity;
+      selectedCity.value = { name: profileCity, ...myLocation.value };
+    }
+  } catch {
+    // Ohne Vorbelegung weiter - die Stadt kann man auch selbst waehlen.
+  }
+});
 
 function onCity(c: City | null) {
   selectedCity.value = c;
@@ -101,6 +121,13 @@ async function onSubmit() {
       lng: selectedCity.value?.lng ?? null,
     });
     if (isPublic.value) await groupsStore.togglePublic(id, true);
+    if (place.value) {
+      try {
+        await groupsStore.saveMeetupPlace(id, place.value);
+      } catch {
+        notifyError('Gruppe erstellt, aber der Treffpunkt konnte nicht gespeichert werden.');
+      }
+    }
     await router.push(`/groups/${id}`);
   } catch {
     errorMessage.value = 'Die Gruppe konnte nicht erstellt werden. Bitte versuche es erneut.';

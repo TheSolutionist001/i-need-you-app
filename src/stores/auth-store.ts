@@ -120,6 +120,14 @@ export const useAuthStore = defineStore('auth', () => {
     if (error) throw error;
   }
 
+  // Eigene (grobe) Stadt-Koordinaten, z. B. um die Ortssuche zu gewichten.
+  // null, wenn noch kein Standort hinterlegt ist.
+  async function fetchMyLocation(): Promise<{ lat: number; lng: number } | null> {
+    const { data, error } = await supabase.rpc('get_my_location').maybeSingle();
+    if (error) throw error;
+    return (data as { lat: number; lng: number } | null) ?? null;
+  }
+
   return {
     session,
     user,
@@ -134,5 +142,6 @@ export const useAuthStore = defineStore('auth', () => {
     fetchOwnProfile,
     updateOwnProfile,
     setLocation,
+    fetchMyLocation,
   };
 });

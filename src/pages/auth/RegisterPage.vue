@@ -77,7 +77,7 @@ import CitySelect from '@/components/CitySelect.vue';
 import NexxupLogo from '@/components/NexxupLogo.vue';
 import { useAuthStore } from '@/stores/auth-store';
 import { genderOptions, type Gender } from '@/types/profile';
-import type { City } from '@/data/german-cities';
+import type { City } from '@/utils/geocode';
 import { getAuthErrorMessage } from '@/utils/auth-errors';
 
 const router = useRouter();

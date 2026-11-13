@@ -9,6 +9,7 @@ import type {
   GroupPreview,
   NewGroupInput,
 } from '@/types/group';
+import type { Place } from '@/utils/geocode';
 
 export const useGroupsStore = defineStore('groups', () => {
   const myGroups = ref<DiscoverGroup[]>([]);
@@ -51,6 +52,35 @@ export const useGroupsStore = defineStore('groups', () => {
       .from('groups')
       .update({ next_meetup_at: nextMeetupAt })
       .eq('id', groupId);
+    if (error) throw error;
+  }
+
+  // Treffpunkt: nur fuer Mitglieder/Ersteller lesbar (RLS) - sonst null.
+  async function fetchMeetupPlace(groupId: string): Promise<Place | null> {
+    const { data, error } = await supabase
+      .from('group_meetup_places')
+      .select('name, address, lat, lng')
+      .eq('group_id', groupId)
+      .maybeSingle();
+    if (error) throw error;
+    return data as Place | null;
+  }
+
+  // Treffpunkt setzen/aendern (place) oder entfernen (null). Nur Ersteller (RLS).
+  async function saveMeetupPlace(groupId: string, place: Place | null): Promise<void> {
+    if (!place) {
+      const { error } = await supabase.from('group_meetup_places').delete().eq('group_id', groupId);
+      if (error) throw error;
+      return;
+    }
+    const { error } = await supabase.from('group_meetup_places').upsert({
+      group_id: groupId,
+      name: place.name.slice(0, 200),
+      address: place.address?.slice(0, 300) ?? null,
+      lat: place.lat,
+      lng: place.lng,
+      updated_at: new Date().toISOString(),
+    });
     if (error) throw error;
   }
 
@@ -124,6 +154,8 @@ export const useGroupsStore = defineStore('groups', () => {
     discoverGroups,
     fetchMyGroups,
     updateMeetup,
+    fetchMeetupPlace,
+    saveMeetupPlace,
     fetchActiveCount,
     fetchGroup,
     fetchMembers,
