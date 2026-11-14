@@ -8,6 +8,9 @@ export interface Group {
   is_public_event: boolean;
   created_by: string;
   created_at: string;
+  sport: string;
+  next_meetup_at: string | null;
+  city: string | null;
 }
 
 export interface GroupMember {
@@ -33,4 +36,34 @@ export interface GroupPreview {
   active_count: number;
   is_full: boolean;
   already_member: boolean;
+}
+
+// Rueckgabe von discover_groups (eigene Gruppen + oeffentliche im Umkreis)
+export interface DiscoverGroup {
+  id: string;
+  name: string;
+  description: string | null;
+  sport: string;
+  max_members: number;
+  is_public_event: boolean;
+  created_by: string;
+  next_meetup_at: string | null;
+  city: string | null;
+  active_count: number;
+  my_status: GroupMemberStatus | null;
+  distance_m: number | null;
+  // Ungefaehre Position (Stadt, auf ~1 km gerundet) fuer die Karte
+  lat?: number | null;
+  lng?: number | null;
+}
+
+export interface NewGroupInput {
+  name: string;
+  description: string;
+  maxMembers: number;
+  sport: string;
+  nextMeetupAt: string | null; // ISO
+  city: string | null;
+  lat: number | null;
+  lng: number | null;
 }

@@ -15,12 +15,14 @@ export const useBoardStore = defineStore('board', () => {
     targetGenders: Gender[] | null,
     lat: number,
     lng: number,
+    sport: string,
   ): Promise<string> {
     const { data, error } = await supabase.rpc('create_board_post', {
       p_body: body,
       p_target_genders: targetGenders && targetGenders.length > 0 ? targetGenders : null,
       p_lat: lat,
       p_lng: lng,
+      p_sport: sport,
     });
     if (error) throw error;
     return data as string;

@@ -1,0 +1,32 @@
+# Automatische Pruefung bei jedem Pull Request und jedem Push auf main:
+# Typen pruefen, Tests laufen lassen, App bauen. Schlaegt etwas fehl,
+# zeigt GitHub am Pull Request ein rotes Kreuz.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Abhaengigkeiten installieren
+        run: npm ci
+
+      - name: Typen pruefen
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
+      - name: App bauen
+        run: npx quasar build

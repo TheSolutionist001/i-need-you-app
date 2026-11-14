@@ -1,1 +1,309 @@
-/* app global css */
+/* Nexxup – globales Design (Dark Mode)
+   Farben und Schriften aus dem Logo (Claude Design, Variante 6a).
+   Schriften liegen in der App selbst (@fontsource), es wird nichts von Google geladen. */
+
+@import '@fontsource-variable/archivo/index.css';
+@import '@fontsource-variable/unbounded/index.css';
+
+:root {
+  --nx-accent: #ff5a1f;
+  --nx-ink: #16140f;
+  --nx-cream: #f3efe8;
+  --nx-bg: #12110d;
+  --nx-surface: #1e1c17;
+  --nx-surface-2: #29261f;
+  --nx-border: rgba(243, 239, 232, 0.09);
+  --nx-muted: #a8a196;
+  --nx-radius: 16px;
+}
+
+body {
+  background: var(--nx-bg);
+  color: var(--nx-cream);
+  font-family: 'Archivo Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ueberschriften in der Logo-Schrift */
+.text-h4,
+.text-h5,
+.text-h6,
+.nx-display {
+  font-family: 'Unbounded Variable', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.text-h6 {
+  font-size: 1.15rem;
+}
+
+/* Gedaempftes Grau passend zum warmen Farbton (statt Quasars kaltem Grau) */
+.text-grey,
+.text-caption.text-grey {
+  color: var(--nx-muted) !important;
+}
+
+/* Karten und Listen: flach, abgerundet, feine Kontur statt Schatten */
+.q-card {
+  border-radius: var(--nx-radius);
+  box-shadow: none;
+  background: var(--nx-surface);
+  border: 1px solid var(--nx-border);
+}
+.q-list--bordered {
+  border-color: var(--nx-border);
+  background: var(--nx-surface);
+}
+.q-list--bordered.rounded-borders {
+  border-radius: var(--nx-radius);
+  overflow: hidden;
+}
+.q-list--separator > .q-item-type + .q-item-type,
+.q-list--separator > .q-virtual-scroll__content > .q-item-type + .q-item-type {
+  border-top-color: var(--nx-border);
+}
+.q-separator--dark {
+  background: var(--nx-border);
+}
+
+/* Knoepfe: rund, kraeftig, ohne Grossbuchstaben.
+   Auf Orange steht dunkle Schrift (Kontrast wie im Logo, weiss waere zu schwach). */
+.q-btn {
+  border-radius: 12px;
+  text-transform: none;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.q-btn--round {
+  border-radius: 50%;
+}
+.q-btn.bg-primary {
+  color: var(--nx-ink) !important;
+}
+.q-avatar.bg-primary {
+  color: var(--nx-ink) !important;
+  font-weight: 700;
+}
+
+/* Dialoge und Menues */
+.q-dialog .q-card,
+.q-menu {
+  background: var(--nx-surface-2);
+  border-radius: var(--nx-radius);
+}
+
+/* Hinweisboxen, dezent im Dark Mode (ersetzt die hellen bg-*-1 Boxen) */
+.nx-note {
+  border-radius: 12px;
+  padding: 12px 16px;
+  border: 1px solid;
+  font-size: 0.9rem;
+}
+.nx-note a {
+  color: inherit;
+  text-decoration: underline;
+}
+.nx-note--warning {
+  background: rgba(255, 176, 32, 0.1);
+  border-color: rgba(255, 176, 32, 0.3);
+  color: #ffc867;
+}
+.nx-note--negative {
+  background: rgba(255, 90, 90, 0.1);
+  border-color: rgba(255, 90, 90, 0.3);
+  color: #ff9c9c;
+}
+.nx-note--info {
+  background: rgba(255, 90, 31, 0.1);
+  border-color: rgba(255, 90, 31, 0.3);
+  color: #ffa47f;
+}
+
+/* Kopfleiste mit Milchglas-Effekt */
+.nx-header {
+  background: rgba(18, 17, 13, 0.72);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--nx-border);
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Tab-Leiste unten (Handy) */
+.nx-tabbar {
+  background: rgba(18, 17, 13, 0.85);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-top: 1px solid var(--nx-border);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.nx-tabbar .q-tab {
+  color: var(--nx-muted);
+  min-height: 56px;
+}
+.nx-tabbar .q-tab--active {
+  color: var(--nx-accent);
+}
+.nx-tabbar .q-tab__label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: none;
+}
+
+/* Wert-Fähnchen am Umkreis-Regler: dunkle Schrift auf Orange */
+.q-slider__text {
+  color: var(--nx-ink);
+  font-weight: 600;
+}
+
+/* Badges auf Orange/Gruen ebenfalls mit dunkler Schrift (Lesbarkeit) */
+.q-badge.bg-primary,
+.q-badge.bg-green,
+.q-badge.bg-positive,
+.q-badge.bg-warning {
+  color: var(--nx-ink);
+  font-weight: 600;
+}
+
+/* Meldungen (Notify) auf Gruen/Rot ebenfalls mit dunkler Schrift */
+.q-notification.bg-positive,
+.q-notification.bg-negative {
+  color: var(--nx-ink) !important;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+/* ===== Redesign "Entdecken" (Richtung B + Bildkarten) ===== */
+
+/* Plakette auf Bildflaechen (Uhrzeit, Entfernung) */
+.nx-tag {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.42);
+  color: #fff;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  white-space: nowrap;
+}
+
+/* Belegungs-Balken */
+.nx-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--nx-surface-2);
+  overflow: hidden;
+}
+.nx-bar span {
+  display: block;
+  height: 100%;
+  background: var(--nx-accent);
+  border-radius: 3px;
+}
+
+/* Sportart-Filter: waagerecht wischbar */
+.nx-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.nx-chips::-webkit-scrollbar {
+  display: none;
+}
+.nx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--nx-surface-2);
+  color: var(--nx-cream);
+  border: 0;
+  font: inherit;
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.nx-chip--on {
+  background: var(--nx-accent);
+  color: var(--nx-ink);
+}
+
+/* Waagerechte Karten-Leiste zum Wischen (mit Einrasten) */
+.nx-scroller {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+}
+.nx-scroller::-webkit-scrollbar {
+  display: none;
+}
+.nx-scroller > * {
+  scroll-snap-align: start;
+  flex: 0 0 min(300px, 82%);
+}
+
+/* Abschnitts-Ueberschrift mit "Alle"-Link */
+.nx-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 26px 0 10px;
+}
+.nx-section__title {
+  font-family: 'Unbounded Variable', sans-serif;
+  font-weight: 600;
+  font-size: 16px;
+}
+.nx-section a,
+.nx-section .nx-link {
+  color: var(--nx-accent);
+  font-weight: 600;
+  font-size: 13px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* Suchfeld */
+.nx-search .q-field__control {
+  border-radius: 14px !important;
+  background: var(--nx-surface) !important;
+}
+
+/* Grosser "+"-Knopf in der Mitte der Tab-Leiste */
+.nx-tabbar__inner {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-start;
+  height: 64px;
+}
+.nx-tabbar__item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding-top: 8px;
+  color: var(--nx-muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.nx-tabbar__item--active {
+  color: var(--nx-accent);
+}
+.nx-plus {
+  width: 54px;
+  height: 54px;
+  border-radius: 18px !important;
+  margin-top: -18px;
+  box-shadow: 0 8px 24px rgba(255, 90, 31, 0.45);
+}

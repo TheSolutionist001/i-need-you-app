@@ -1,5 +1,6 @@
 <template>
-  <div class="flex flex-center" style="min-height: 100vh">
+  <div class="flex flex-center column q-pa-md" style="min-height: 100vh">
+    <NexxupLogo :size="132" wordmark tagline background="#12110d" class="q-mb-xl" />
     <q-card class="q-pa-lg" style="width: 100%; max-width: 360px">
       <q-card-section>
         <div class="text-h6">Willkommen zurück</div>
@@ -7,9 +8,7 @@
       </q-card-section>
 
       <q-card-section v-if="authStore.bannedNotice">
-        <q-banner class="bg-red-1 text-negative rounded-borders">
-          Dein Konto wurde gesperrt.
-        </q-banner>
+        <div class="nx-note nx-note--negative">Dein Konto wurde gesperrt.</div>
       </q-card-section>
 
       <q-card-section>
@@ -51,6 +50,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import NexxupLogo from '@/components/NexxupLogo.vue';
 import { useAuthStore } from '@/stores/auth-store';
 import { getAuthErrorMessage } from '@/utils/auth-errors';
 

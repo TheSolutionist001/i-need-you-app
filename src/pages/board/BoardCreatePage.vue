@@ -8,6 +8,10 @@
 
       <q-card-section>
         <q-form class="q-gutter-md" @submit="onSubmit">
+          <div>
+            <div class="text-caption text-grey q-mb-xs">Sportart</div>
+            <SportPicker v-model="sport" />
+          </div>
           <q-input
             v-model="body"
             label="Dein Gesuch"
@@ -43,23 +47,41 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import CitySelect from '@/components/CitySelect.vue';
+import SportPicker from '@/components/SportPicker.vue';
 import { useBoardStore } from '@/stores/board-store';
+import { useAuthStore } from '@/stores/auth-store';
 import { genderOptions, type Gender } from '@/types/profile';
-import type { City } from '@/data/german-cities';
+import type { City } from '@/utils/geocode';
 
 const router = useRouter();
 const boardStore = useBoardStore();
+const authStore = useAuthStore();
 
 const body = ref('');
+const sport = ref('sonstiges');
 const targetGenders = ref<Gender[]>([]);
 const city = ref<string | null>(null);
 const selectedCity = ref<City | null>(null);
 const loading = ref(false);
 const errorMessage = ref('');
 const cityError = ref('');
+
+// Wohnort aus dem Profil vorbelegen (kann geaendert werden).
+onMounted(async () => {
+  try {
+    const loc = await authStore.fetchMyLocation();
+    const name = authStore.profile?.city;
+    if (loc && name && !selectedCity.value) {
+      city.value = name;
+      selectedCity.value = { name, ...loc };
+    }
+  } catch {
+    // Ohne Vorbelegung weiter.
+  }
+});
 
 function onCity(c: City | null) {
   selectedCity.value = c;
@@ -80,6 +102,7 @@ async function onSubmit() {
       targetGenders.value,
       selectedCity.value.lat,
       selectedCity.value.lng,
+      sport.value,
     );
     await router.push('/board');
   } catch {

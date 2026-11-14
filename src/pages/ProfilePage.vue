@@ -2,7 +2,7 @@
   <q-page class="flex flex-center">
     <q-card class="q-pa-lg" style="width: 100%; max-width: 360px">
       <q-card-section class="text-center">
-        <q-avatar color="primary" text-color="white" size="56px">
+        <q-avatar color="primary" size="56px">
           {{ initials }}
         </q-avatar>
         <div class="text-h6 q-mt-sm">{{ authStore.profile?.first_name }}</div>
@@ -27,6 +27,10 @@
           />
           <CitySelect v-model="city" @select="onCity" />
           <div v-if="cityError" class="text-negative text-caption">{{ cityError }}</div>
+          <div v-if="needsCity" class="nx-note nx-note--warning">
+            Bitte wähle deinen Ort neu aus der Liste aus, damit Gruppen und Gesuche in deiner
+            Nähe angezeigt werden.
+          </div>
 
           <div v-if="successMessage" class="text-positive text-caption">{{ successMessage }}</div>
           <div v-if="errorMessage" class="text-negative text-caption">{{ errorMessage }}</div>
@@ -68,6 +72,15 @@
         </template>
       </q-card-section>
 
+      <template v-if="authStore.profile?.is_admin">
+        <q-separator />
+        <q-item clickable to="/admin" class="q-py-md">
+          <q-item-section avatar><q-icon name="shield" color="primary" /></q-item-section>
+          <q-item-section>Moderation</q-item-section>
+          <q-item-section side><q-icon name="chevron_right" /></q-item-section>
+        </q-item>
+      </template>
+
       <q-card-section class="text-center">
         <q-btn flat color="negative" label="Abmelden" @click="onLogout" />
       </q-card-section>
@@ -81,7 +94,7 @@ import { useRouter } from 'vue-router';
 import CitySelect from '@/components/CitySelect.vue';
 import { useAuthStore } from '@/stores/auth-store';
 import { genderOptions, type Gender } from '@/types/profile';
-import { findCity, type City } from '@/data/german-cities';
+import type { City } from '@/utils/geocode';
 import { pushAvailable, isPushEnabled, requestPushPermission } from '@/utils/push';
 
 const router = useRouter();
@@ -101,7 +114,19 @@ watchEffect(() => {
     firstName.value = authStore.profile.first_name;
     gender.value = authStore.profile.gender ?? 'keine_angabe';
     city.value = authStore.profile.city ?? null;
-    selectedCity.value = findCity(authStore.profile.city) ?? null;
+  }
+});
+
+// Hat das Profil schon Koordinaten? Aeltere Profile (z. B. "Koeln" statt "Köln")
+// haben evtl. keinen Standort -> Hinweis, den Ort neu zu waehlen.
+const hasLocation = ref(true);
+const needsCity = computed(() => !hasLocation.value && !selectedCity.value);
+
+onMounted(async () => {
+  try {
+    hasLocation.value = (await authStore.fetchMyLocation()) !== null;
+  } catch {
+    // Unklar -> keinen falschen Hinweis zeigen.
   }
 });
 
@@ -114,8 +139,9 @@ function onCity(c: City | null) {
 
 async function onSave() {
   cityError.value = '';
-  if (!selectedCity.value) {
-    cityError.value = 'Bitte eine Stadt auswählen.';
+  // Ort muss neu gewaehlt werden, wenn keiner gespeichert ist oder er geleert wurde.
+  if (!selectedCity.value && (!city.value || !hasLocation.value)) {
+    cityError.value = 'Bitte einen Ort aus der Liste auswählen.';
     return;
   }
   loading.value = true;
@@ -125,9 +151,13 @@ async function onSave() {
     await authStore.updateOwnProfile({
       first_name: firstName.value,
       gender: gender.value,
-      city: selectedCity.value.name,
+      ...(selectedCity.value ? { city: selectedCity.value.name } : {}),
     });
-    await authStore.setLocation(selectedCity.value.lat, selectedCity.value.lng);
+    if (selectedCity.value) {
+      await authStore.setLocation(selectedCity.value.lat, selectedCity.value.lng);
+      hasLocation.value = true;
+      selectedCity.value = null;
+    }
     successMessage.value = 'Gespeichert.';
   } catch {
     errorMessage.value = 'Speichern fehlgeschlagen. Bitte versuche es erneut.';
