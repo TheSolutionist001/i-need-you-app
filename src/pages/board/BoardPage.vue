@@ -76,9 +76,27 @@
                   <q-item v-close-popup clickable @click="openReport('profile', post)">
                     <q-item-section>Nutzer melden</q-item-section>
                   </q-item>
+                  <q-item v-close-popup clickable @click="onBlock(post)">
+                    <q-item-section>Nutzer blockieren</q-item-section>
+                  </q-item>
                 </q-list>
               </q-menu>
             </q-btn>
+          </template>
+          <template v-if="post.author_id !== authStore.user?.id" #footer>
+            <q-btn
+              unelevated
+              rounded
+              no-caps
+              color="primary"
+              text-color="dark"
+              icon="chat_bubble"
+              label="Antworten"
+              size="sm"
+              class="q-mt-sm"
+              :loading="starting === post.id"
+              @click="replyTo(post.author_id, post.id)"
+            />
           </template>
         </PostCard>
       </div>
@@ -103,7 +121,9 @@ import { useBoardStore } from '@/stores/board-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { useModerationStore } from '@/stores/moderation-store';
 import { useRealtime } from '@/composables/useRealtime';
-import { notifyError } from '@/utils/notify';
+import { notifyError, notifySuccess } from '@/utils/notify';
+import { useStartChat } from '@/composables/useStartChat';
+import { useChatStore } from '@/stores/chat-store';
 import type { BoardFeedItem } from '@/types/board';
 import type { ReportReason } from '@/types/report';
 
@@ -111,6 +131,25 @@ const $q = useQuasar();
 const boardStore = useBoardStore();
 const authStore = useAuthStore();
 const moderationStore = useModerationStore();
+const chatStore = useChatStore();
+const { replyTo, starting } = useStartChat();
+
+function onBlock(post: BoardFeedItem) {
+  $q.dialog({
+    title: `${post.author_first_name ?? 'Person'} blockieren?`,
+    message: 'Ihr seht eure Gesuche gegenseitig nicht mehr und könnt euch nicht schreiben. Die Person wird nicht benachrichtigt. Aufheben kannst du das im Profil.',
+    cancel: true,
+    ok: { label: 'Blockieren', color: 'negative', flat: true },
+  }).onOk(async () => {
+    try {
+      await chatStore.blockUser(post.author_id);
+      notifySuccess('Blockiert');
+      await load(true);
+    } catch {
+      notifyError('Blockieren hat nicht geklappt.');
+    }
+  });
+}
 
 const radius = ref(20);
 const feed = ref<BoardFeedItem[]>([]);

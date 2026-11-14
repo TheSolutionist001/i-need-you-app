@@ -33,6 +33,15 @@
           <CitySelect v-model="city" label="Stadt des Gesuchs" @select="onCity" />
           <div v-if="cityError" class="text-negative text-caption">{{ cityError }}</div>
 
+          <q-select
+            v-model="validDays"
+            :options="validOptions"
+            emit-value
+            map-options
+            label="Sichtbar für"
+            hint="Danach verschwindet das Gesuch automatisch vom Brett"
+          />
+
           <div v-if="errorMessage" class="text-negative text-caption">{{ errorMessage }}</div>
 
           <div class="row q-gutter-sm">
@@ -68,6 +77,13 @@ const selectedCity = ref<City | null>(null);
 const loading = ref(false);
 const errorMessage = ref('');
 const cityError = ref('');
+const validDays = ref(14);
+const validOptions = [
+  { label: '3 Tage', value: 3 },
+  { label: '1 Woche', value: 7 },
+  { label: '2 Wochen', value: 14 },
+  { label: '30 Tage', value: 30 },
+];
 
 // Wohnort aus dem Profil vorbelegen (kann geaendert werden).
 onMounted(async () => {
@@ -103,6 +119,7 @@ async function onSubmit() {
       selectedCity.value.lat,
       selectedCity.value.lng,
       sport.value,
+      validDays.value,
     );
     await router.push('/board');
   } catch {

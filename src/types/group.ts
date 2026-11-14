@@ -11,6 +11,8 @@ export interface Group {
   sport: string;
   next_meetup_at: string | null;
   city: string | null;
+  // 1 = jede Woche, 2 = alle 2 Wochen ...; null = einmalig
+  meetup_repeat_weeks?: number | null;
 }
 
 export interface GroupMember {
@@ -66,4 +68,30 @@ export interface NewGroupInput {
   city: string | null;
   lat: number | null;
   lng: number | null;
+  repeatWeeks: number | null;
+}
+
+export type RsvpStatus = 'yes' | 'no';
+
+export interface MeetupRsvp {
+  user_id: string;
+  status: RsvpStatus;
+  first_name: string | null;
+}
+
+export interface PollOptionView {
+  id: string;
+  label: string;
+  votes: number;
+  mine: boolean;
+  voters: string[];
+}
+
+export interface PollView {
+  id: string;
+  question: string;
+  created_by: string;
+  created_at: string;
+  options: PollOptionView[];
+  voterCount: number;
 }

@@ -71,3 +71,30 @@ export function formatDistanceShort(meters: number | null): string | null {
   const km = meters / 1000;
   return km < 1 ? '< 1 km' : `ca. ${Math.round(km)} km`;
 }
+
+// Wiederholung eines Gruppentermins: null = einmalig
+export function formatRepeat(weeks: number | null | undefined): string | null {
+  if (!weeks) return null;
+  return weeks === 1 ? 'Jede Woche' : `Alle ${weeks} Wochen`;
+}
+
+// Restlaufzeit eines Gesuchs: "läuft heute ab", "noch 1 Tag", "noch 5 Tage"
+export function formatExpiry(iso: string | null | undefined, now: Date = new Date()): string | null {
+  if (!iso) return null;
+  const ms = new Date(iso).getTime() - now.getTime();
+  if (ms <= 0) return 'abgelaufen';
+  const days = Math.floor(ms / 86_400_000);
+  if (days < 1) return 'läuft heute ab';
+  return days === 1 ? 'noch 1 Tag' : `noch ${days} Tage`;
+}
+
+// Zeit in Chats: heute nur Uhrzeit, gestern "gestern 18:30", sonst Datum + Uhrzeit
+export function formatChatTime(iso: string, now: Date = new Date()): string {
+  const d = new Date(iso);
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (sameDay(d, now)) return hhmm(d);
+  if (sameDay(d, yesterday)) return `gestern ${hhmm(d)}`;
+  const date = d.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
+  return `${date} ${hhmm(d)}`;
+}

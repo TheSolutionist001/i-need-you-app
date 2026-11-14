@@ -16,6 +16,7 @@ export const useBoardStore = defineStore('board', () => {
     lat: number,
     lng: number,
     sport: string,
+    validDays = 14,
   ): Promise<string> {
     const { data, error } = await supabase.rpc('create_board_post', {
       p_body: body,
@@ -23,6 +24,7 @@ export const useBoardStore = defineStore('board', () => {
       p_lat: lat,
       p_lng: lng,
       p_sport: sport,
+      p_valid_days: validDays,
     });
     if (error) throw error;
     return data as string;

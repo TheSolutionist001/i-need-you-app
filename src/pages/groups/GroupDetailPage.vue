@@ -41,7 +41,10 @@
             <div class="column q-gutter-xs q-mt-md">
               <div class="row items-center no-wrap">
                 <q-icon name="event" size="18px" class="text-primary q-mr-sm" />
-                <span v-if="group.next_meetup_at">{{ formatMeetup(group.next_meetup_at) }}</span>
+                <span v-if="group.next_meetup_at">
+                  {{ formatMeetup(group.next_meetup_at) }}
+                  <span v-if="repeatLabel" class="text-grey"> · {{ repeatLabel }}</span>
+                </span>
                 <span v-else class="text-grey">Kein Termin eingetragen</span>
                 <q-btn
                   v-if="isCreator"
@@ -61,6 +64,16 @@
             <div class="nx-bar q-mt-sm">
               <span :style="{ width: `${Math.min(100, (activeCount / group.max_members) * 100)}%` }" />
             </div>
+
+            <MeetupRsvp
+              v-if="(isMember || isCreator) && group.next_meetup_at && isUpcoming(group.next_meetup_at)"
+              :key="group.next_meetup_at"
+              class="q-mt-md"
+              :group-id="groupId"
+              :meetup-at="group.next_meetup_at"
+              :my-id="authStore.user?.id ?? null"
+              :can-rsvp="isActiveMember"
+            />
           </div>
         </q-card>
 
@@ -79,6 +92,16 @@
         </template>
         <div v-else class="nx-note nx-note--info q-mt-md">
           Den genauen Treffpunkt siehst du, sobald du der Gruppe beigetreten bist.
+        </div>
+
+        <!-- Gruppen-Chat + Umfragen: nur aktive Mitglieder (RLS) -->
+        <template v-if="isActiveMember">
+          <div ref="chatAnchor" class="text-subtitle2 q-mt-md q-mb-xs">Gruppen-Chat</div>
+          <ChatPanel :group-id="groupId" :my-id="authStore.user?.id ?? null" show-names height="380px" />
+          <GroupPolls class="q-mt-md" :group-id="groupId" :my-id="authStore.user?.id ?? null" :is-group-creator="isCreator" />
+        </template>
+        <div v-else-if="isMember" class="nx-note nx-note--info q-mt-md">
+          Du stehst auf der Warteliste. Chat und Umfragen siehst du, sobald du nachrückst.
         </div>
 
         <!-- Einladelink + Mitglieder nur fuer Mitglieder (RLS zeigt Fremden ohnehin keine Namen) -->
@@ -174,6 +197,15 @@
         </q-card-section>
         <q-card-section>
           <q-input v-model="meetupInput" type="datetime-local" label="Datum und Uhrzeit" stack-label />
+          <q-select
+            v-model="repeatInput"
+            class="q-mt-sm"
+            :options="repeatOptions"
+            emit-value
+            map-options
+            label="Wiederholung"
+            hint="Bei Wiederholung springt der Termin danach automatisch weiter"
+          />
         </q-card-section>
         <q-card-actions align="right">
           <q-btn v-if="group?.next_meetup_at" flat no-caps color="negative" label="Entfernen" @click="saveMeetup(null)" />
@@ -205,7 +237,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useGroupsStore } from '@/stores/groups-store';
@@ -214,10 +246,14 @@ import { useRealtime } from '@/composables/useRealtime';
 import EmptyState from '@/components/EmptyState.vue';
 import MeetupPlaceCard from '@/components/MeetupPlaceCard.vue';
 import PlaceSelect from '@/components/PlaceSelect.vue';
+import ChatPanel from '@/components/ChatPanel.vue';
+import GroupPolls from '@/components/GroupPolls.vue';
+import MeetupRsvp from '@/components/MeetupRsvp.vue';
+import { repeatOptions } from '@/data/repeat';
 import type { Place } from '@/utils/geocode';
 import { notifyError, notifySuccess } from '@/utils/notify';
 import { getSport, sportGradient } from '@/data/sports';
-import { formatMeetup } from '@/utils/format';
+import { formatMeetup, formatRepeat, isUpcoming } from '@/utils/format';
 import type { Group, GroupMemberWithName } from '@/types/group';
 
 const route = useRoute();
@@ -236,6 +272,12 @@ const activeMembers = computed(() => members.value.filter((m) => m.status === 'a
 const waitlistMembers = computed(() => members.value.filter((m) => m.status === 'waitlist'));
 const isCreator = computed(() => group.value?.created_by === authStore.user?.id);
 const isMember = computed(() => members.value.some((m) => m.user_id === authStore.user?.id));
+const isActiveMember = computed(() =>
+  members.value.some((m) => m.user_id === authStore.user?.id && m.status === 'active'),
+);
+const repeatLabel = computed(() => formatRepeat(group.value?.meetup_repeat_weeks));
+// Aus der Nachrichten-Uebersicht (?chat=1) direkt zum Gruppen-Chat springen
+const chatAnchor = ref<HTMLElement | null>(null);
 const sport = computed(() => getSport(group.value?.sport));
 // Nicht-Mitglieder (oeffentliche Gruppe) sehen keine Namen, nur die Anzahl.
 const publicCount = ref(0);
@@ -244,6 +286,7 @@ const activeCount = computed(() => (isMember.value ? activeMembers.value.length 
 // Termin bearbeiten (nur Ersteller; RLS erlaubt Updates nur dem Ersteller)
 const meetupOpen = ref(false);
 const meetupInput = ref('');
+const repeatInput = ref<number | null>(null);
 
 function toLocalInput(iso: string): string {
   const d = new Date(iso);
@@ -253,14 +296,18 @@ function toLocalInput(iso: string): string {
 
 function openMeetupDialog() {
   meetupInput.value = group.value?.next_meetup_at ? toLocalInput(group.value.next_meetup_at) : '';
+  repeatInput.value = group.value?.meetup_repeat_weeks ?? null;
   meetupOpen.value = true;
 }
 
 async function saveMeetup(value: string | null) {
   const iso = value ? new Date(value).toISOString() : null;
   try {
-    await groupsStore.updateMeetup(groupId, iso);
-    if (group.value) group.value.next_meetup_at = iso;
+    await groupsStore.updateMeetup(groupId, iso, repeatInput.value);
+    if (group.value) {
+      group.value.next_meetup_at = iso;
+      group.value.meetup_repeat_weeks = iso ? repeatInput.value : null;
+    }
     meetupOpen.value = false;
     notifySuccess(iso ? 'Termin gespeichert' : 'Termin entfernt');
   } catch {
@@ -403,7 +450,18 @@ function onDelete() {
   });
 }
 
-onMounted(() => load());
+onMounted(async () => {
+  await load();
+  if (route.query.chat && isActiveMember.value) {
+    await nextTick();
+    chatAnchor.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+});
+
+// Termin-Aenderungen (z. B. automatisches Weiterschieben) live uebernehmen
+useRealtime('groups', `id=eq.${groupId}`, () => {
+  void load(true);
+});
 </script>
 
 <style scoped>
