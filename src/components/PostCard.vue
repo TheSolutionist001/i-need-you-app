@@ -19,6 +19,10 @@
         <div v-if="post.target_genders" class="text-caption text-grey q-mt-xs">
           <q-icon name="lock" size="12px" /> nur für: {{ targetLabel }}
         </div>
+        <div v-if="expiry" class="text-caption text-grey q-mt-xs">
+          <q-icon name="schedule" size="12px" /> {{ expiry }}
+        </div>
+        <slot name="footer" />
       </div>
     </div>
   </q-card>
@@ -36,7 +40,9 @@
         <div class="text-caption text-grey q-mt-xs">
           {{ formatRelativeTime(post.created_at) }} · {{ distance }}
           <template v-if="post.target_genders"> · <q-icon name="lock" size="12px" /> {{ targetLabel }}</template>
+          <template v-if="expiry"> · {{ expiry }}</template>
         </div>
+        <slot name="footer" />
       </div>
     </div>
   </q-card>
@@ -45,7 +51,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { getSport, sportGradient } from '@/data/sports';
-import { formatDistanceShort, formatRelativeTime } from '@/utils/format';
+import { formatDistanceShort, formatExpiry, formatRelativeTime } from '@/utils/format';
 import { genderOptions } from '@/types/profile';
 import type { BoardFeedItem } from '@/types/board';
 
@@ -53,6 +59,7 @@ const props = defineProps<{ post: BoardFeedItem; featured?: boolean; clamp?: boo
 
 const sport = computed(() => getSport(props.post.sport));
 const distance = computed(() => formatDistanceShort(props.post.distance_m) ?? '');
+const expiry = computed(() => formatExpiry(props.post.expires_at));
 const initial = computed(() => (props.post.author_first_name?.[0] ?? '?').toUpperCase());
 const avatarStyle = computed(() => ({ background: sport.value.from, color: 'var(--nx-ink)' }));
 const targetLabel = computed(() =>

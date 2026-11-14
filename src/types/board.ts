@@ -13,4 +13,6 @@ export interface BoardFeedItem {
   // Ungefaehre Position (Stadt, auf ~1 km gerundet) fuer die Karte
   lat?: number | null;
   lng?: number | null;
+  // Ablaufdatum (Gesuche verschwinden danach vom Brett)
+  expires_at?: string | null;
 }

@@ -9,7 +9,10 @@ import type {
   GroupPreview,
   NewGroupInput,
 } from '@/types/group';
+import type { MeetupRsvp, PollView, RsvpStatus } from '@/types/group';
 import type { Place } from '@/utils/geocode';
+import { buildPollViews, type PollOptionRow, type PollRow, type PollVoteRow } from '@/utils/polls';
+import { fetchFirstNames } from '@/stores/chat-store';
 
 export const useGroupsStore = defineStore('groups', () => {
   const myGroups = ref<DiscoverGroup[]>([]);
@@ -26,7 +29,16 @@ export const useGroupsStore = defineStore('groups', () => {
       p_lng: input.lng,
     });
     if (error) throw error;
-    return data as string;
+    const id = data as string;
+    // Wiederholung separat setzen (Ersteller darf seine Gruppe aendern - RLS)
+    if (input.repeatWeeks && input.nextMeetupAt) {
+      const { error: repeatError } = await supabase
+        .from('groups')
+        .update({ meetup_repeat_weeks: input.repeatWeeks })
+        .eq('id', id);
+      if (repeatError) throw repeatError;
+    }
+    return id;
   }
 
   // radiusKm = null: nur eigene Gruppen (Mitglied oder Warteliste).
@@ -47,11 +59,74 @@ export const useGroupsStore = defineStore('groups', () => {
     return (data as number) ?? 0;
   }
 
-  async function updateMeetup(groupId: string, nextMeetupAt: string | null): Promise<void> {
+  // Termin + Wiederholung (null = einmalig). Ohne Termin keine Wiederholung.
+  async function updateMeetup(groupId: string, nextMeetupAt: string | null, repeatWeeks: number | null = null): Promise<void> {
     const { error } = await supabase
       .from('groups')
-      .update({ next_meetup_at: nextMeetupAt })
+      .update({ next_meetup_at: nextMeetupAt, meetup_repeat_weeks: nextMeetupAt ? repeatWeeks : null })
       .eq('id', groupId);
+    if (error) throw error;
+  }
+
+  // --- Zusagen fuer den aktuellen Termin ---
+  async function fetchRsvps(groupId: string, meetupAt: string): Promise<MeetupRsvp[]> {
+    const { data, error } = await supabase
+      .from('meetup_rsvps')
+      .select('user_id, status')
+      .eq('group_id', groupId)
+      .eq('meetup_at', meetupAt);
+    if (error) throw error;
+    const rows = (data ?? []) as { user_id: string; status: RsvpStatus }[];
+    const names = await fetchFirstNames(rows.map((r) => r.user_id));
+    return rows.map((r) => ({ ...r, first_name: names.get(r.user_id) ?? null }));
+  }
+
+  async function setRsvp(groupId: string, status: RsvpStatus | null): Promise<void> {
+    const { error } = await supabase.rpc('set_rsvp', { p_group_id: groupId, p_status: status });
+    if (error) throw error;
+  }
+
+  // --- Umfragen ---
+  async function fetchPolls(groupId: string, myId: string | null): Promise<PollView[]> {
+    const { data: polls, error } = await supabase
+      .from('group_polls')
+      .select('id, question, created_by, created_at')
+      .eq('group_id', groupId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    const pollRows = (polls ?? []) as PollRow[];
+    if (pollRows.length === 0) return [];
+    const ids = pollRows.map((p) => p.id);
+    const [{ data: options, error: oErr }, { data: votes, error: vErr }] = await Promise.all([
+      supabase.from('group_poll_options').select('id, poll_id, label, position').in('poll_id', ids),
+      supabase.from('group_poll_votes').select('option_id, poll_id, user_id').in('poll_id', ids),
+    ]);
+    if (oErr) throw oErr;
+    if (vErr) throw vErr;
+    const voteRows = (votes ?? []) as PollVoteRow[];
+    const names = await fetchFirstNames(voteRows.map((v) => v.user_id));
+    return buildPollViews(pollRows, (options ?? []) as PollOptionRow[], voteRows, myId, names);
+  }
+
+  async function createPoll(groupId: string, question: string, options: string[]): Promise<void> {
+    const { error } = await supabase.rpc('create_poll', {
+      p_group_id: groupId,
+      p_question: question.trim(),
+      p_options: options.map((o) => o.trim()).filter(Boolean),
+    });
+    if (error) throw error;
+  }
+
+  async function setVote(pollId: string, optionId: string, on: boolean): Promise<void> {
+    const { error } = on
+      ? await supabase.from('group_poll_votes').insert({ poll_id: pollId, option_id: optionId })
+      : // RLS erlaubt nur das Loeschen eigener Stimmen
+        await supabase.from('group_poll_votes').delete().eq('option_id', optionId);
+    if (error && error.code !== '23505') throw error;
+  }
+
+  async function deletePoll(pollId: string): Promise<void> {
+    const { error } = await supabase.from('group_polls').delete().eq('id', pollId);
     if (error) throw error;
   }
 
@@ -154,6 +229,12 @@ export const useGroupsStore = defineStore('groups', () => {
     discoverGroups,
     fetchMyGroups,
     updateMeetup,
+    fetchRsvps,
+    setRsvp,
+    fetchPolls,
+    createPoll,
+    setVote,
+    deletePoll,
     fetchMeetupPlace,
     saveMeetupPlace,
     fetchActiveCount,

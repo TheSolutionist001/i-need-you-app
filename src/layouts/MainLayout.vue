@@ -11,6 +11,22 @@
 
         <q-space />
 
+        <!-- Nachrichten mit Zaehler fuer Ungelesenes (alle Bildschirmgroessen) -->
+        <q-btn
+          v-if="authStore.isAuthenticated"
+          flat
+          round
+          icon="chat_bubble_outline"
+          to="/messages"
+          aria-label="Nachrichten"
+          :class="isActive('/messages') ? 'text-primary' : 'text-grey'"
+          class="q-mr-xs"
+        >
+          <q-badge v-if="chatStore.unreadCount > 0" floating rounded color="primary" text-color="dark">
+            {{ chatStore.unreadCount > 9 ? '9+' : chatStore.unreadCount }}
+          </q-badge>
+        </q-btn>
+
         <!-- Ab Tablet-Breite: Navigation oben. Auf dem Handy uebernimmt die Tab-Leiste unten. -->
         <template v-if="authStore.isAuthenticated">
           <div class="gt-sm row items-center q-gutter-xs">
@@ -90,14 +106,25 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import NexxupLogo from '@/components/NexxupLogo.vue';
 import { useAuthStore } from '@/stores/auth-store';
+import { useChatStore } from '@/stores/chat-store';
+import { useRealtime } from '@/composables/useRealtime';
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const chatStore = useChatStore();
+
+// Ungelesen-Zaehler aktuell halten (RLS: nur eigene Nachrichten kommen an)
+onMounted(() => {
+  if (authStore.isAuthenticated) void chatStore.refreshUnread();
+});
+useRealtime('chat_messages', null, () => {
+  if (authStore.isAuthenticated) void chatStore.refreshUnread();
+});
 
 const createOpen = ref(false);
 

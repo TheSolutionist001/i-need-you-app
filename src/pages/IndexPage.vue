@@ -82,7 +82,23 @@
         <div class="q-mt-md">
           <GroupCard v-if="selectedGroup" :group="selectedGroup" />
           <template v-else-if="selectedPost">
-            <PostCard :post="selectedPost" featured />
+            <PostCard :post="selectedPost" featured>
+              <template v-if="selectedPost.author_id !== authStore.user?.id" #footer>
+                <q-btn
+                  unelevated
+                  rounded
+                  no-caps
+                  color="primary"
+                  text-color="dark"
+                  icon="chat_bubble"
+                  label="Antworten"
+                  size="sm"
+                  class="q-mt-sm"
+                  :loading="starting === selectedPost.id"
+                  @click="replyTo(selectedPost.author_id, selectedPost.id)"
+                />
+              </template>
+            </PostCard>
             <q-btn
               flat
               no-caps
@@ -179,6 +195,7 @@ import type { MapItem } from '@/utils/map';
 import EmptyState from '@/components/EmptyState.vue';
 import GroupCard from '@/components/GroupCard.vue';
 import PostCard from '@/components/PostCard.vue';
+import { useStartChat } from '@/composables/useStartChat';
 import SportChips from '@/components/SportChips.vue';
 import { useAuthStore } from '@/stores/auth-store';
 import { useGroupsStore } from '@/stores/groups-store';
@@ -193,6 +210,7 @@ import type { BoardFeedItem } from '@/types/board';
 const RADIUS_KM = 20;
 
 const router = useRouter();
+const { replyTo, starting } = useStartChat();
 const authStore = useAuthStore();
 const groupsStore = useGroupsStore();
 const boardStore = useBoardStore();

@@ -29,6 +29,8 @@ const routes: RouteRecordRaw[] = [
       { path: 'groups/:id', component: () => import('@/pages/groups/GroupDetailPage.vue'), meta: { requiresAuth: true } },
       { path: 'board', component: () => import('@/pages/board/BoardPage.vue'), meta: { requiresAuth: true } },
       { path: 'board/new', component: () => import('@/pages/board/BoardCreatePage.vue'), meta: { requiresAuth: true } },
+      { path: 'messages', component: () => import('@/pages/messages/MessagesPage.vue'), meta: { requiresAuth: true } },
+      { path: 'messages/:id', component: () => import('@/pages/messages/ChatPage.vue'), meta: { requiresAuth: true } },
       { path: 'admin', component: () => import('@/pages/admin/AdminPage.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
     ],
   },

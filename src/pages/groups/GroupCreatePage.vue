@@ -33,6 +33,15 @@
             stack-label
             hint="Erscheint auf der Startseite unter „Deine nächsten Termine“"
           />
+          <q-select
+            v-if="meetupAt"
+            v-model="repeatWeeks"
+            :options="repeatOptions"
+            emit-value
+            map-options
+            label="Wiederholung"
+            hint="Bei Wiederholung springt der Termin danach automatisch weiter"
+          />
 
           <PlaceSelect v-model="place" label="Treffpunkt (optional)" :near="myLocation" />
           <div class="text-caption text-grey" style="margin-top: 4px">
@@ -69,6 +78,7 @@ import { useGroupsStore } from '@/stores/groups-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { notifyError } from '@/utils/notify';
 import type { City, Place } from '@/utils/geocode';
+import { repeatOptions } from '@/data/repeat';
 
 const router = useRouter();
 const groupsStore = useGroupsStore();
@@ -79,6 +89,7 @@ const name = ref('');
 const description = ref('');
 const maxMembers = ref(10);
 const meetupAt = ref('');
+const repeatWeeks = ref<number | null>(null);
 const city = ref<string | null>(null);
 const selectedCity = ref<City | null>(null);
 const place = ref<Place | null>(null);
@@ -119,6 +130,7 @@ async function onSubmit() {
       city: selectedCity.value?.name ?? null,
       lat: selectedCity.value?.lat ?? null,
       lng: selectedCity.value?.lng ?? null,
+      repeatWeeks: meetupAt.value ? repeatWeeks.value : null,
     });
     if (isPublic.value) await groupsStore.togglePublic(id, true);
     if (place.value) {

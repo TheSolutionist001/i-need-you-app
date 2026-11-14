@@ -72,6 +72,21 @@
         </template>
       </q-card-section>
 
+      <template v-if="blocked.length > 0">
+        <q-separator />
+        <q-card-section>
+          <div class="text-subtitle2 q-mb-xs">Blockierte Personen</div>
+          <q-list dense>
+            <q-item v-for="b in blocked" :key="b.blocked_id" class="q-px-none">
+              <q-item-section>{{ b.first_name ?? 'Unbekannt' }}</q-item-section>
+              <q-item-section side>
+                <q-btn flat dense no-caps color="primary" label="Aufheben" @click="onUnblock(b.blocked_id)" />
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card-section>
+      </template>
+
       <template v-if="authStore.profile?.is_admin">
         <q-separator />
         <q-item clickable to="/admin" class="q-py-md">
@@ -96,6 +111,9 @@ import { useAuthStore } from '@/stores/auth-store';
 import { genderOptions, type Gender } from '@/types/profile';
 import type { City } from '@/utils/geocode';
 import { pushAvailable, isPushEnabled, requestPushPermission } from '@/utils/push';
+import { useChatStore } from '@/stores/chat-store';
+import { notifyError, notifySuccess } from '@/utils/notify';
+import type { BlockedUser } from '@/types/chat';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -121,6 +139,29 @@ watchEffect(() => {
 // haben evtl. keinen Standort -> Hinweis, den Ort neu zu waehlen.
 const hasLocation = ref(true);
 const needsCity = computed(() => !hasLocation.value && !selectedCity.value);
+
+const chatStore = useChatStore();
+const blocked = ref<BlockedUser[]>([]);
+
+async function loadBlocked() {
+  try {
+    blocked.value = await chatStore.fetchBlocked();
+  } catch {
+    blocked.value = [];
+  }
+}
+
+async function onUnblock(id: string) {
+  try {
+    await chatStore.unblockUser(id);
+    notifySuccess('Blockierung aufgehoben');
+    await loadBlocked();
+  } catch {
+    notifyError('Das hat nicht geklappt.');
+  }
+}
+
+onMounted(loadBlocked);
 
 onMounted(async () => {
   try {
