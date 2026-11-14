@@ -20,6 +20,9 @@ if not exist ".env" (
 )
 
 echo [1/3] Neuesten Stand holen ...
+rem npm install veraendert package-lock.json unter Windows manchmal leicht -
+rem diese lokale Aenderung verwerfen, sonst blockiert sie das Aktualisieren.
+git checkout -- package-lock.json 2>nul
 git fetch origin
 if errorlevel 1 goto gitfail
 git checkout %BRANCH%
