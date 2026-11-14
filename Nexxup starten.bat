@@ -6,9 +6,8 @@ rem  und startet die App unter http://localhost:9100
 rem  Beenden: im schwarzen Fenster Strg + C druecken.
 rem ==========================================================
 
-rem Zweig mit dem aktuellen Stand. Nach dem Zusammenfuehren
-rem (Pull Request) hier "main" eintragen.
-set BRANCH=claude/i-need-you-app-session-cx4shj
+rem Zweig mit dem aktuellen Stand (Hauptzweig).
+set BRANCH=main
 
 title Nexxup
 cd /d "%~dp0"
